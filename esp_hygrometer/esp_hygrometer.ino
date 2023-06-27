@@ -10,12 +10,29 @@
 #include <DHT_U.h>
 #include <Wire.h>
 #include <DHT.h>
-#include <WiFi.h>
+// #include <WiFi.h>
+#include <WiFiMulti.h>
+#include <InfluxDbClient.h>
+#include <InfluxDbCloud.h>
 
 #define DHTPIN  15          // DHT22 data pin is connected to ESP8266 GPIO14 (NodeMCU D5)
 #define DHTTYPE DHT22       // DHT22 sensor is used
 DHT_Unified dht(DHTPIN, DHTTYPE);
+WiFiMulti wifiMulti;
 
+#define INFLUXDB_URL "http://192.168.5.10:8086"
+#define INFLUXDB_TOKEN ""
+#define INFLUXDB_ORG "1555812480ef0cff"
+#define INFLUXDB_BUCKET "HomeIoT"
+// Time zone info
+#define TZ_INFO "UTC-6"
+
+// Declare InfluxDB client instance with preconfigured InfluxCloud certificate
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
+// Declare Data point
+Point influxSensor("wifi_status");
+
+// sensor readings
 char temperature[] = "000.00 C";
 char humidity[]    = "000.00 %";
 
@@ -33,13 +50,41 @@ void setup(void)
   while(!Serial){delay(100);}
 
   // connect to wifi
-  WiFi.begin(ssid, password);
+  /*WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
   Serial.println("\r\nWiFi connected: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP());*/
+
+  // Setup wifi
+  WiFi.mode(WIFI_STA);
+  wifiMulti.addAP(ssid, password);
+
+  Serial.print("Connecting to wifi");
+  while (wifiMulti.run() != WL_CONNECTED) {
+      Serial.print(".");
+      delay(100);
+  }
+  Serial.println();
+
+  // Accurate time is necessary for certificate validation and writing in batches
+  // We use the NTP servers in your area as provided by: https://www.pool.ntp.org/zone/
+  // Syncing progress and the time will be printed to Serial.
+  timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
+
+  // Check server connection
+  if (client.validateConnection()) {
+      Serial.print("Connected to InfluxDB: ");
+      Serial.println(client.getServerUrl());
+  } else {
+      Serial.print("InfluxDB connection failed: ");
+      Serial.println(client.getLastErrorMessage());
+  }
+
+  influxSensor.addTag("device", "ESP32");
+  influxSensor.addTag("SSID", WiFi.SSID());
 
   
   dht.begin(); // Initialize the DHT library
@@ -54,7 +99,7 @@ void setup(void)
   Serial.print  (F("Max Value:   ")); Serial.print(sensor.max_value); Serial.println(F("°C"));
   Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("°C"));
   Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("°C"));
-  Serial.println(F("------------------------------------"));
+  Serial.println(F("-----"));
   // Print humidity sensor details.
   dht.humidity().getSensor(&sensor);
   Serial.println(F("Humidity Sensor"));
@@ -92,6 +137,7 @@ void loop()
     Serial.println(F("%"));
   }
 
+  /*
   WiFiClient client;
   if(!client.connect(host, httpPort)) {
     Serial.println("FATAL: Unable to connect");
@@ -100,8 +146,25 @@ void loop()
 
   String data = "{\"t\":"+String(event1.temperature)+",\"r\":"+String(event2.relative_humidity)+"}";
   postJSON(&client, "/data", &data);
+  */
 
-  delay(1000*5);
+  influxSensor.clearFields();
+  influxSensor.addField("rssi", WiFi.RSSI());
+  Serial.print("Writing: ");
+  Serial.println(influxSensor.toLineProtocol());
+
+  // Check WiFi connection and reconnect if needed
+  if (wifiMulti.run() != WL_CONNECTED) {
+    Serial.println("Wifi connection lost");
+  }
+
+  // Write point
+  if (!client.writePoint(influxSensor)) {
+    Serial.print("InfluxDB write failed: ");
+    Serial.println(client.getLastErrorMessage());
+  }
+
+  delay(1000*60);
 }
 
 void postJSON(WiFiClient *client, String url, String *data) {
