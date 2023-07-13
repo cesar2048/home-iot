@@ -3,6 +3,7 @@
 # References
   * [ESP32 WiFi Client](https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/WiFiClient/WiFiClient.ino)
   * [ESP32 DevKit 36 & 30 pin](https://www.etechnophiles.com/esp32-dev-board-pinout-specifications-datasheet-and-schematic/)
+  * [ESP32 supress boot messages](https://community.platformio.org/t/esp32-prevent-from-sending-serial-output-at-startup/18756/2)
   * [NodeMCU with DHT22](https://simple-circuit.com/esp-12e-nodemcu-ssd1306-dht22-am2302/)
 
 Other sources for GPIO reference:

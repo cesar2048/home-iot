@@ -28,32 +28,27 @@ RTC_DATA_ATTR SmoothCounter smoothCount = { SMOOTHING_FACTOR, 0 };
 
 void setup(void)
 {
-  Serial.begin(115200);
-  while(!Serial){delay(100);}
+    Serial.begin(115200);
+    while(!Serial){delay(100);}
 
-  //Increment boot number and print it every reboot
-  ++bootCount;
-  Serial.println("Boot number: " + String(bootCount));
+    //Increment boot number and print it every reboot
+    ++bootCount;
+    Serial.print(F("-------- Boot number: ")); Serial.print(bootCount);
 
-  uint32_t Freq = 0;
-  Freq = getCpuFrequencyMhz();
-  Serial.print("CPU Freq = ");
-  Serial.print(Freq);
-  Serial.println(" MHz");
-  Freq = getXtalFrequencyMhz();
-  Serial.print("XTAL Freq = ");
-  Serial.print(Freq);
-  Serial.println(" MHz");
-  Freq = getApbFrequency();
-  Serial.print("APB Freq = ");
-  Serial.print(Freq);
-  Serial.println(" Hz");
-
-  //Print the wakeup reason for ESP32
-  print_wakeup_reason();
-  
-  dht.begin(); // Initialize the DHT library
-  sensor_t sensor;
+    if (bootCount == 1) {
+        uint32_t Freq = 0;
+        Freq = getCpuFrequencyMhz();
+        Serial.print(F(" CPU Freq = ")); Serial.print(Freq); Serial.println(F(" MHz"));
+        Freq = getXtalFrequencyMhz();
+        Serial.print(F("XTAL Freq = ")); Serial.print(Freq); Serial.println(F(" MHz"));
+        Freq = getApbFrequency();
+        Serial.print(F("APB Freq = ")); Serial.print(Freq); Serial.println(F(" Hz"));
+    } else {
+      //Print the wakeup reason for ESP32
+      print_wakeup_reason();
+    }
+    
+    dht.begin(); // Initialize the DHT library
 }
 
 void initConnection() {
@@ -61,7 +56,7 @@ void initConnection() {
   WiFi.mode(WIFI_STA);
   wifiMulti.addAP(ssid, password);
 
-  Serial.print("Connecting to wifi");
+  Serial.print(F("Connecting to wifi"));
   while (wifiMulti.run() != WL_CONNECTED) {
       Serial.print(".");
       delay(100);
@@ -73,25 +68,20 @@ void initConnection() {
   // Syncing progress and the time will be printed to Serial.
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println("Time not configured, synching");
+    Serial.println(F("Time not configured, sync"));
     timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
-  } else {
-    Serial.println("Time already configured");
   }
 
   // Check server connection
   if (!influxValidated) {
-    Serial.print("Check InfluxDB connection");
     if (client.validateConnection()) {
-        Serial.print("Connected to InfluxDB: ");
+        Serial.print(F("InfluxDB: connected"));
         Serial.println(client.getServerUrl());
     } else {
-        Serial.print("InfluxDB connection failed: ");
+        Serial.print(F("InfluxDB: connection failed: "));
         Serial.println(client.getLastErrorMessage());
     }
     influxValidated = true;
-  } else {
-    Serial.print("Check InfluxDB connection already validated");
   }
 
   influxSensor.addTag("device", "ESP32");
@@ -106,15 +96,14 @@ void loop()
   dht.humidity().getEvent(&evtHumidity);
 
   if (isnan(evtTemperature.temperature)) {
-    Serial.println(F("Error reading temperature"));
+    Serial.println(F("Sensor: Temperature error"));
   } else if (isnan(evtHumidity.relative_humidity)) {
-    Serial.println(F("Error reading humidity"));
+    Serial.println(F("Sensor: Humidity error"));
   }
 
-  Serial.print(F("Raw: Temperature: ")); Serial.print(evtTemperature.temperature);
-  Serial.print(F(" C, Humidity: ")); Serial.print(evtHumidity.relative_humidity); Serial.println(F(" %"));
+  Serial.print(F("Sensor: Temperature: ")); Serial.print(evtTemperature.temperature);
+  Serial.print(F(" C, Humidity: ")); Serial.print(evtHumidity.relative_humidity); Serial.print(F(" %"));
 
-  // block 2 --------------------------
   SignalAdd(temperatureSignal, evtTemperature.temperature);
   SignalAdd(humiditySignal, evtHumidity.relative_humidity);
   if (CounterIncrease(smoothCount)) {
@@ -124,22 +113,22 @@ void loop()
     influxSensor.addField("temperature", SignalClose(temperatureSignal, smoothCount.targetCount));
     influxSensor.addField("humidity", SignalClose(humiditySignal, smoothCount.targetCount));
     
-    Serial.print("Writing: ");
+    Serial.print(F(" - Writing: "));
     Serial.println(influxSensor.toLineProtocol());
 
     // Check WiFi connection and reconnect if needed
     if (wifiMulti.run() != WL_CONNECTED) {
-      Serial.println("Wifi connection lost");
+      Serial.println(F("Wifi connection lost"));
     }
   
     // Write point
     if (!client.writePoint(influxSensor)) {
-      Serial.print("InfluxDB write failed: ");
+      Serial.print(F("InfluxDB: write failed, "));
       Serial.println(client.getLastErrorMessage());
     }
   }
 
-  esp_sleep_enable_timer_wakeup(1000 * 1000 * 60 / SMOOTHING_FACTOR);
+  esp_sleep_enable_timer_wakeup(1000 * 1000 * (60 - 6) / SMOOTHING_FACTOR);
   esp_deep_sleep_start();
 }
 
@@ -150,12 +139,12 @@ void print_wakeup_reason(){
 
   switch(wakeup_reason)
   {
-    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
-    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
-    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
-    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
-    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+    case ESP_SLEEP_WAKEUP_EXT0 :     Serial.println(F(" by ext signal RTC_IO")); break;
+    case ESP_SLEEP_WAKEUP_EXT1 :     Serial.println(F(" by ext signal RTC_CNTL")); break;
+    case ESP_SLEEP_WAKEUP_TIMER :    Serial.println(F(" by timer")); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println(F(" by touchpad")); break;
+    case ESP_SLEEP_WAKEUP_ULP :      Serial.println(F(" by ULP")); break;
+    default :                        Serial.printf (" not by deep sleep: %d\n",wakeup_reason); break;
   }
 }
 
