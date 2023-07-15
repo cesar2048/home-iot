@@ -9,3 +9,8 @@
 Other sources for GPIO reference:
   * [github.com/TronixLab/DOIT_ESP32_DevKit-V1_30P](https://github.com/TronixLab/DOIT_ESP32_DevKit-v1_30P)
   * [circuitstate.com/pinouts/doit-esp32-devkit-v1](https://www.circuitstate.com/pinouts/doit-esp32-devkit-v1-wifi-development-board-pinout-diagram-and-reference/)
+
+DeepSleep power ESP32:
+  * [Deep sleep power consumption](https://www.reddit.com/r/esp32/comments/11yjvvk/deep_sleep_power_consumption_esp32s3_way_too_high/)
+  * [Esp32 FireBeetle deep sleep](https://lucidar.me/en/esp32/power-consumption-of-esp32-firebeetle-dfr0478/)
+  * [Esp32 DevKitC power consumption](https://lucidar.me/en/esp32/power-consumption-of-esp32-devkitc-v4/)
