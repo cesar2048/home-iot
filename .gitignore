@@ -1,3 +1,5 @@
 node_modules
 drivers
 env.h
+
+3dsmax-cases/AutoBackup*
