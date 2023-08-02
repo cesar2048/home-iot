@@ -5,15 +5,16 @@
 #include <DHT_U.h>
 #include <Wire.h>
 #include <DHT.h>
-#include <WiFiMulti.h>
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
+
+#include "ESP32IO.hpp"
+#include "Application.hpp"
 #include "SmoothSignal.hpp"
 #include "env.h"
 
-#define LED_BUILTIN 2
-#define DHTPIN  15
-#define DHTTYPE DHT22
+#define DHTPIN      14
+#define DHTTYPE     DHT22
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
 WiFiMulti wifiMulti;
@@ -24,10 +25,30 @@ RTC_DATA_ATTR bool influxValidated = false;
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 Point influxSensor("ambient_status");
 RTC_DATA_ATTR SignalAccumulator temperatureSignal = { 0, 0 };
-RTC_DATA_ATTR SignalAccumulator humiditySignal  = { 0, 0 };
-RTC_DATA_ATTR SmoothCounter smoothCount = { SMOOTHING_FACTOR, 0 };
+RTC_DATA_ATTR SignalAccumulator humiditySignal    = { 0, 0 };
+RTC_DATA_ATTR SmoothCounter smoothCount           = { SMOOTHING_FACTOR, 0 };
 
-void setup(void)
+ESP32Adapter adapter;
+Application *main_app;
+
+void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);
+    Serial.begin(115200);
+    while(!Serial){delay(100);}
+    
+    main_app = new Application(&adapter);
+    Serial.print(F("Hello WORLD\n"));
+    main_app->setup();
+}
+
+void loop() {
+    Serial.print(F("Pasa por aqui\n"));
+    main_app->loop();
+    delay(1000);    
+}
+
+
+void a_setup(void)
 {
     pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
@@ -56,10 +77,8 @@ void setup(void)
 }
 
 
-void loop()
+void a_loop()
 {
-    blink_n_times(1, 150); // measure, single fast
-
     // Get temperature event and print its value.
     sensors_event_t evtTemperature, evtHumidity;
     dht.temperature().getEvent(&evtTemperature);
@@ -67,35 +86,39 @@ void loop()
 
     if (isnan(evtTemperature.temperature)) {
         Serial.println(F("Sensor: Temperature error"));
+        blink_n_times(2, 150); // error, twice fast 
     } else if (isnan(evtHumidity.relative_humidity)) {
         Serial.println(F("Sensor: Humidity error"));
-    }
+        blink_n_times(2, 150); // error, twice fast 
+    } else {
+        blink_n_times(1, 150); // measure, single fast
 
-    Serial.print(F("Sensor: Temperature: ")); Serial.print(evtTemperature.temperature);
-    Serial.print(F(" C, Humidity: ")); Serial.print(evtHumidity.relative_humidity); Serial.print(F(" %"));
+        Serial.print(F("Sensor: Temperature: ")); Serial.print(evtTemperature.temperature);
+        Serial.print(F(" C, Humidity: ")); Serial.print(evtHumidity.relative_humidity); Serial.print(F(" %"));
 
-    SignalAdd(temperatureSignal, evtTemperature.temperature);
-    SignalAdd(humiditySignal, evtHumidity.relative_humidity);
-    if (CounterIncrease(smoothCount)) {
-        initConnection();
+        SignalAdd(temperatureSignal, evtTemperature.temperature);
+        SignalAdd(humiditySignal, evtHumidity.relative_humidity);
+        if (CounterIncrease(smoothCount)) {
+            initConnection();
 
-        influxSensor.clearFields();
-        influxSensor.addField("temperature", SignalClose(temperatureSignal, smoothCount.targetCount));
-        influxSensor.addField("humidity", SignalClose(humiditySignal, smoothCount.targetCount));
-        
-        Serial.print(F(" - Writing: "));
-        Serial.println(influxSensor.toLineProtocol());
+            influxSensor.clearFields();
+            influxSensor.addField("temperature", SignalClose(temperatureSignal, smoothCount.targetCount));
+            influxSensor.addField("humidity", SignalClose(humiditySignal, smoothCount.targetCount));
 
-        // Check WiFi connection and reconnect if needed
-        if (wifiMulti.run() != WL_CONNECTED) {
-            Serial.println(F("Wifi connection lost"));
-        }
-  
-        // Write point
-        if (!client.writePoint(influxSensor)) {
-            blink_n_times(3, 400); // influx fail, slow 2 times
-            Serial.print(F("InfluxDB: write failed, "));
-            Serial.println(client.getLastErrorMessage());
+            Serial.print(F(" - Writing: "));
+            Serial.println(influxSensor.toLineProtocol());
+
+            // Check WiFi connection and reconnect if needed
+            if (wifiMulti.run() != WL_CONNECTED) {
+                Serial.println(F("Wifi connection lost"));
+            }
+      
+            // Write point
+            if (!client.writePoint(influxSensor)) {
+                blink_n_times(3, 400); // influx fail, slow 2 times
+                Serial.print(F("InfluxDB: write failed, "));
+                Serial.println(client.getLastErrorMessage());
+            }
         }
     }
 
