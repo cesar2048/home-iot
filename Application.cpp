@@ -1,8 +1,8 @@
 #include "Application.hpp"
-#include <Adafruit_Sensor.h>
-#include <DHT_U.h>
-#include <Wire.h>
-#include <DHT.h>
+
+RTC_DATA_ATTR SignalAccumulator temperatureAcc = { 0, 0 };
+RTC_DATA_ATTR SignalAccumulator humidityAcc    = { 0, 0 };
+RTC_DATA_ATTR SmoothCounter     smoother       = { SMOOTHING_FACTOR, 0 };
 
 Application::Application(IOAdapter *adapterInstance):adapter(adapterInstance) {
 }
@@ -13,8 +13,9 @@ void Application::setup() {
         Serial.print("Start in APP_INIT");
         a->start_AP_server();
 
-    } else if (a->read_state() == APP_CONFIGURED) {
-        Serial.println("Start as APP_CONFIGURED");
+    } else if (a->read_state() == APP_TEST) {
+        Serial.println("Start as APP_TEST");
+
         bool wifiConnected = a->start_wifi_client();
         if (!wifiConnected) {
             Serial.println("failed to connect to wifi");
@@ -22,6 +23,14 @@ void Application::setup() {
             a->set_state(APP_INIT);
             a->restart();
         }
+
+        a->set_state(APP_CONFIGURED);
+        a->restart();
+    }
+
+    if (a->read_state() == APP_CONFIGURED) {
+        // Serial.println("Start as APP_CONFIGURED");
+        a->init_sensors();
     }
 }
 
@@ -31,18 +40,31 @@ void Application::loop() {
         a->handle_client();
 
     } else if (a->read_state() == APP_CONFIGURED) {
-        float temperature = a->read_temperature();
-        float humidity    = a->read_humidity();
-        if (isnan(temperature) || isnan(humidity)) {
+        DataReading temperature = a->read_temperature();
+        DataReading humidity    = a->read_humidity();
+        if (!temperature.success || !humidity.success) {
+            Serial.printf("Reading: Temp: ERR, Hum: ERR\n");
             a->blink_to_show(MESSAGE_FAILED_TO_READ);
-            delay(1500);
+            delay(1000);
             return;
         }
         
-        bool send_success = a->send_measurements_to_influx_server(temperature, humidity);
-        if (!send_success) {
-            a->blink_to_show(MESSAGE_FAILED_TO_WRITE);
-            delay(1500);
+        Serial.printf("Reading: Temp: %f, Hum: %f\n", temperature.value, humidity.value);
+        SignalAdd(temperatureAcc, temperature.value);
+        SignalAdd(humidityAcc, humidity.value);
+        if (CounterIncrease(smoother)) {
+            a->start_wifi_client();
+            bool send_success = a->send_measurements_to_influx_server(
+                SignalClose(temperatureAcc, smoother.targetCount),
+                SignalClose(humidityAcc, smoother.targetCount)
+            );
+            if (!send_success) {
+                a->blink_to_show(MESSAGE_FAILED_TO_WRITE);
+            }
         }
+
+        Serial.println("going deep sleep");
+        esp_sleep_enable_timer_wakeup(1000 * 1000 * (60 - 6) / SMOOTHING_FACTOR);
+        esp_deep_sleep_start();
     }
 }

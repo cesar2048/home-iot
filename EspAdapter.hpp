@@ -10,15 +10,24 @@
 #include <InfluxDbCloud.h>
 #include <Wire.h>
 
+#include <Adafruit_Sensor.h>
+#include <DHT_U.h>
+#include <DHT.h>
+
 #include <Preferences.h>
 #include "Application.hpp"
 
+// esp hardware
 #define LED_BUILTIN 2
+#define DHTPIN      14
+#define DHTTYPE     DHT22
 
+#define PREFS_RW_MODE false
+#define PREFS_RO_MODE true
+
+// for influxdb
 #define TZ_INFO "UTC-6"
 
-#define RW_MODE false
-#define RO_MODE true
 
 // const char *ssid = "SupernovaIoT";
 extern const char *ssid;
@@ -26,6 +35,7 @@ extern const char *ssid;
 class ESP32Adapter : public IOAdapter {
     WiFiServer server;
     WiFiMulti *wifiMulti;
+    DHT_Unified *dht;
 
     void handle_request(WiFiClient &client, String &method, String &url, String &body);
 
@@ -39,9 +49,10 @@ public:
     bool start_wifi_client();
     void blink_to_show(int message);
     void restart();
+    void init_sensors();
 
-    float read_temperature();
-    float read_humidity();
+    DataReading read_temperature();
+    DataReading read_humidity();
     bool send_measurements_to_influx_server(float temperature, float humidity);
 };
 

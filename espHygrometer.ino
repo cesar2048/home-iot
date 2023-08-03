@@ -13,20 +13,14 @@
 #include "SmoothSignal.hpp"
 #include "env.h"
 
-#define DHTPIN      14
-#define DHTTYPE     DHT22
+// #define DHTPIN      14
+// #define DHTTYPE     DHT22
 
-DHT_Unified dht(DHTPIN, DHTTYPE);
-WiFiMulti wifiMulti;
+// DHT_Unified dht(DHTPIN, DHTTYPE);
+// WiFiMulti wifiMulti;
 
-RTC_DATA_ATTR int bootCount = 0;
-RTC_DATA_ATTR bool influxValidated = false;
-
-InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
-Point influxSensor("ambient_status");
-RTC_DATA_ATTR SignalAccumulator temperatureSignal = { 0, 0 };
-RTC_DATA_ATTR SignalAccumulator humiditySignal    = { 0, 0 };
-RTC_DATA_ATTR SmoothCounter smoothCount           = { SMOOTHING_FACTOR, 0 };
+// RTC_DATA_ATTR int bootCount = 0;
+// RTC_DATA_ATTR bool influxValidated = false;
 
 ESP32Adapter adapter;
 Application *main_app;
@@ -45,7 +39,7 @@ void loop() {
     delay(10);
 }
 
-
+/*
 void a_setup(void)
 {
     pinMode(LED_BUILTIN, OUTPUT);
@@ -124,7 +118,6 @@ void a_loop()
     esp_deep_sleep_start();
 }
 
-
 void initConnection() {
     blink_n_times(3, 150); // init wifi, fast 3 times
 
@@ -190,3 +183,5 @@ void blink_n_times(int n, int speed) {
         }
     }
 }
+
+*/

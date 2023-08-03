@@ -1,5 +1,6 @@
 #include "EspAdapter.hpp"
 #include "test-scripts/public/output.c"
+#include "env.h"
 
 const char *ssid = "SupernovaIoT";
 
@@ -11,7 +12,7 @@ int ESP32Adapter::read_state()
 {
     int result = APP_INIT;
     Preferences appPrefs;
-    appPrefs.begin("appPrefs", RW_MODE);
+    appPrefs.begin("appPrefs", PREFS_RW_MODE);
 
     bool keyExists = appPrefs.isKey("state");
     if (keyExists)
@@ -34,7 +35,7 @@ int ESP32Adapter::read_state()
 
 void ESP32Adapter::set_state(int state) {
     Preferences appPrefs;
-    appPrefs.begin("appPrefs", RW_MODE);
+    appPrefs.begin("appPrefs", PREFS_RW_MODE);
     appPrefs.putInt("state", state);
 }
 
@@ -160,8 +161,8 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
         Serial.println("PASS = " + pass);
 
         Preferences appPrefs;
-        appPrefs.begin("appPrefs", RW_MODE);
-        appPrefs.putInt("state", APP_CONFIGURED);
+        appPrefs.begin("appPrefs", PREFS_RW_MODE);
+        appPrefs.putInt("state", APP_TEST);
         appPrefs.putString("ssid", ssid);
         appPrefs.putString("pass", pass);
 
@@ -193,7 +194,7 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
 bool ESP32Adapter::start_wifi_client()
 {
     Preferences appPrefs;
-    appPrefs.begin("appPrefs", RO_MODE);
+    appPrefs.begin("appPrefs", PREFS_RO_MODE);
     String ssid = appPrefs.getString("ssid");
     String pass = appPrefs.getString("pass");
     
@@ -226,14 +227,79 @@ bool ESP32Adapter::start_wifi_client()
 
     return true;
 }
+
+void ESP32Adapter::restart()
+{
+    ESP.restart();
+}
+
+void ESP32Adapter::init_sensors() {
+    this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
+    this->dht->begin();
+}
+
+DataReading ESP32Adapter::read_temperature()
+{
+    sensors_event_t evt;
+    this->dht->temperature().getEvent(&evt);
+
+    if (isnan(evt.temperature)) {
+        // Serial.println(F("Sensor: Temperature error"));
+        return DataReading{false, 0 };
+    }
+    
+    return DataReading{true, evt.temperature };
+}
+
+DataReading ESP32Adapter::read_humidity()
+{
+    sensors_event_t evt;
+    this->dht->humidity().getEvent(&evt);
+
+    if (isnan(evt.relative_humidity)) {
+        // Serial.println(F("Sensor: Humidity error"));
+        return DataReading{false, 0 };
+    }
+
+    return DataReading{true, evt.relative_humidity };
+}
+
+bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float humidity)
+{
+    InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
+    Point influxSensor("ambient_status");
+    influxSensor.clearFields();
+    influxSensor.addField("temperature", temperature);
+    influxSensor.addField("humidity", humidity);
+
+    Serial.print(F(" - Writing: "));
+    Serial.println(influxSensor.toLineProtocol());
+
+    // Check WiFi connection and reconnect if needed
+    if (this->wifiMulti->run() != WL_CONNECTED) {
+        Serial.println(F("Wifi connection lost"));
+    }
+
+    // Write point
+    if (!client.writePoint(influxSensor)) {
+        Serial.print(F("InfluxDB: write failed, "));
+        Serial.println(client.getLastErrorMessage());
+        return false;
+    }
+
+    return true;
+}
+
+
 void ESP32Adapter::blink_to_show(int message)
 {
     int count = 0;
-    int speed = 300;
+    int speed = 500;
+
     switch(message) {
-        case MESSAGE_FAILED_TO_CONNECT: count = 2; break;
-        case MESSAGE_FAILED_TO_READ:    count = 3; break;
-        case MESSAGE_FAILED_TO_WRITE:   count = 4; break;
+        case MESSAGE_FAILED_TO_CONNECT: count = 2;              break;
+        case MESSAGE_FAILED_TO_READ:    count = 3; speed = 200; break;
+        case MESSAGE_FAILED_TO_WRITE:   count = 4; speed = 200; break;
     }
     
     while (count != 0) {
@@ -245,22 +311,4 @@ void ESP32Adapter::blink_to_show(int message)
             delay(speed);
         }
     }
-}
-void ESP32Adapter::restart()
-{
-    ESP.restart();
-}
-
-
-float ESP32Adapter::read_temperature()
-{
-    return 0;
-}
-float ESP32Adapter::read_humidity()
-{
-    return 0;
-}
-bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float humidity)
-{
-    return false;
 }
