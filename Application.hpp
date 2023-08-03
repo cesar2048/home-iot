@@ -13,6 +13,7 @@
 class IOAdapter {
 public:
     virtual int read_state() = 0;
+    virtual void set_state(int) = 0;
     virtual void start_AP_server() = 0;
     virtual void handle_client() = 0;
     virtual bool start_wifi_client() = 0;

@@ -8,7 +8,7 @@
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
 
-#include "ESP32IO.hpp"
+#include "EspAdapter.hpp"
 #include "Application.hpp"
 #include "SmoothSignal.hpp"
 #include "env.h"
@@ -37,14 +37,12 @@ void setup() {
     while(!Serial){delay(100);}
     
     main_app = new Application(&adapter);
-    Serial.print(F("Hello WORLD\n"));
     main_app->setup();
 }
 
 void loop() {
-    Serial.print(F("Pasa por aqui\n"));
     main_app->loop();
-    delay(1000);    
+    delay(10);
 }
 
 

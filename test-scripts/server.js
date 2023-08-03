@@ -3,16 +3,15 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = 3000;
 
-app.use(bodyParser.json());
+// app.use(bodyParser.json());
+app.use(bodyParser.text('*/*'));
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-
-app.post('/data', (req, res) => {
+app.post('/set-wifi', (req, res) => {
     console.log(req.body);
     res.send({'status': 'ok'});
 });
+
+app.use(express.static('public'));
 
 app.use(function(req, res, next) {
     console.log('Not found');
@@ -23,4 +22,4 @@ app.use(function(req, res, next) {
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
-})
+});
