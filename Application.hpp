@@ -7,7 +7,8 @@
 #include "SmoothSignal.hpp"
 
 // application params
-#define SMOOTHING_FACTOR 4
+#define SMOOTHING_FACTOR   4
+#define MAX_WRITE_FAILURES 3
 
 // constants
 #define APP_INIT                    0

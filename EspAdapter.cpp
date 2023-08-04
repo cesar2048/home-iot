@@ -151,13 +151,16 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
 
     } else if (method == "post" && url == "/set-wifi") {
         // body="ssid=ABCD\npassword=DEFG\n"
-        size_t posEQ = body.indexOf("=");
-        size_t posLF = body.indexOf("\n");
+        size_t posEQ = 0, posLF = 0;
+        
+        posEQ = body.indexOf("=", posLF);
+        posLF = body.indexOf("\n", posEQ);
         String ssid = body.substring(posEQ+1, posLF);
         Serial.println("SSID = " + ssid);
 
         posEQ = body.indexOf("=", posLF);
-        String pass = body.substring(posEQ+1, body.length()-1);
+        posLF = body.indexOf("\n", posEQ);
+        String pass = body.substring(posEQ+1, posLF);
         Serial.println("PASS = " + pass);
 
         Preferences appPrefs;

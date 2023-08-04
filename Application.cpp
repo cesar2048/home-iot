@@ -1,5 +1,6 @@
 #include "Application.hpp"
 
+RTC_DATA_ATTR int               failureWriteCount   = 0;
 RTC_DATA_ATTR SignalAccumulator temperatureAcc = { 0, 0 };
 RTC_DATA_ATTR SignalAccumulator humidityAcc    = { 0, 0 };
 RTC_DATA_ATTR SmoothCounter     smoother       = { SMOOTHING_FACTOR, 0 };
@@ -60,6 +61,11 @@ void Application::loop() {
             );
             if (!send_success) {
                 a->blink_to_show(MESSAGE_FAILED_TO_WRITE);
+                if (++failureWriteCount == MAX_WRITE_FAILURES) {
+                    Serial.println("Too many failures, reset");
+                    a->set_state(APP_INIT);
+                    a->restart();
+                }
             }
         }
 
