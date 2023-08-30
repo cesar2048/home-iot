@@ -9,6 +9,8 @@ Application::Application(IOAdapter *adapterInstance):adapter(adapterInstance) {
 }
 
 void Application::setup() {
+    pinMode(INDICATOR_LED, OUTPUT);
+
     IOAdapter *a = this->adapter;
     if (a->read_state() == APP_INIT) {
         Serial.print("Start in APP_INIT");

@@ -26,10 +26,11 @@ ESP32Adapter adapter;
 Application *main_app;
 
 void setup() {
-    pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
-    while(!Serial){delay(100);}
-    
+    // while(!Serial){delay(100);}
+    delay(1500);
+    Serial.println("Hello world");
+
     main_app = new Application(&adapter);
     main_app->setup();
 }

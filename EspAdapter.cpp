@@ -181,13 +181,13 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
         this->restart();
 
     } else if (url == "/H") {
-        digitalWrite(LED_BUILTIN, HIGH); // GET /H turns the LED on
+        digitalWrite(INDICATOR_LED, HIGH); // GET /H turns the LED on
         client.println("HTTP/1.1 302 Redirect");
         client.println("Location:/");
         client.println();
 
     } else if (url == "/L") {
-        digitalWrite(LED_BUILTIN, LOW); // GET /L turns the LED off
+        digitalWrite(INDICATOR_LED, LOW); // GET /L turns the LED off
         client.println("HTTP/1.1 302 Redirect");
         client.println("Location:/");
         client.println();
@@ -323,9 +323,9 @@ void ESP32Adapter::blink_to_show(int message)
     
     while (count != 0) {
         count --;
-        digitalWrite(LED_BUILTIN, HIGH);
+        digitalWrite(INDICATOR_LED, HIGH);
         delay(speed);
-        digitalWrite(LED_BUILTIN, LOW);
+        digitalWrite(INDICATOR_LED, LOW);
         if (count != 0) {
             delay(speed);
         }

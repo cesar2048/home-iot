@@ -18,6 +18,9 @@
 #define MESSAGE_FAILED_TO_READ      2
 #define MESSAGE_FAILED_TO_WRITE     3
 
+//#define INDICATOR_LED LED_BUILTIN
+#define INDICATOR_LED 18
+
 struct DataReading { bool success; float value; };
 
 class IOAdapter {
