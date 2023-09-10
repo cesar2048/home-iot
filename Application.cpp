@@ -4,6 +4,7 @@ RTC_DATA_ATTR int               failureWriteCount   = 0;
 RTC_DATA_ATTR SignalAccumulator temperatureAcc = { 0, 0 };
 RTC_DATA_ATTR SignalAccumulator humidityAcc    = { 0, 0 };
 RTC_DATA_ATTR SmoothCounter     smoother       = { SMOOTHING_FACTOR, 0 };
+int cyclesOnServer = 0;
 
 Application::Application(IOAdapter *adapterInstance):adapter(adapterInstance) {
 }
@@ -13,7 +14,7 @@ void Application::setup() {
 
     IOAdapter *a = this->adapter;
     if (a->read_state() == APP_INIT) {
-        Serial.print("Start in APP_INIT");
+        Serial.println("Start in APP_INIT");
         a->start_AP_server();
 
     } else if (a->read_state() == APP_TEST) {
@@ -32,7 +33,6 @@ void Application::setup() {
     }
 
     if (a->read_state() == APP_CONFIGURED) {
-        // Serial.println("Start as APP_CONFIGURED");
         a->init_sensors();
     }
 }
@@ -41,6 +41,11 @@ void Application::loop() {
     IOAdapter *a = this->adapter;
     if (a->read_state() == APP_INIT) {
         a->handle_client();
+        if (++cyclesOnServer == 50) {
+            a->blink_to_show(MESSAGE_CONFIG_MODE_ENABLED);
+            cyclesOnServer = 0;
+        }
+        delay(10);
 
     } else if (a->read_state() == APP_CONFIGURED) {
         DataReading temperature = a->read_temperature();

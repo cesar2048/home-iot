@@ -134,7 +134,7 @@ String parseValue(String& body, size_t& posStart) {
     size_t posLF = body.indexOf("\n", posEQ);
     posStart = posLF+1;
 
-    Serial.printf("posEQ=%i, posLF=%i\n", posStart, posEQ, posLF);
+    Serial.printf("posEQ=%i, posLF=%i\n", posEQ, posLF);
     return body.substring(posEQ+1, posLF);
 }
 
@@ -162,7 +162,7 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
         String influxOrg    = parseValue(body, parserPos);
         String influxBucket = parseValue(body, parserPos);
         
-        Serial.printf("SSID=%s\nPASS=%s\nInfluxURL=%s\nInfluxToken=%s\nInfluxOrg=%s\nInfluxBucket=%s\n", ssid.c_str(), pass.c_str(), influxUrl.c_str(), influxToken.c_str(), influxOrg.c_str(), influxBucket.c_str());
+        Serial.printf("Params check:\nSSID=[%s]\nPASS=[%s]\nInfluxURL=[%s]\nInfluxToken=[%s]\nInfluxOrg=[%s]\nInfluxBucket=[%s]\n", ssid.c_str(), pass.c_str(), influxUrl.c_str(), influxToken.c_str(), influxOrg.c_str(), influxBucket.c_str());
 
         Preferences appPrefs;
         appPrefs.begin("appPrefs", PREFS_RW_MODE);
@@ -233,6 +233,22 @@ bool ESP32Adapter::start_wifi_client()
         timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
     }
 
+
+    String influxUrl    = appPrefs.getString("influxUrl");
+    String influxToken  = appPrefs.getString("influxToken");
+    String influxOrg    = appPrefs.getString("influxOrg");
+    String influxBucket = appPrefs.getString("influxBucket");
+    InfluxDBClient client(influxUrl, influxOrg, influxBucket, influxToken);
+
+    if (client.validateConnection()) {
+        Serial.print(F("InfluxDB: connected "));
+        Serial.println(client.getServerUrl());
+    } else {
+        Serial.print(F("InfluxDB: connection failed: "));
+        Serial.println(client.getLastErrorMessage());
+        return false;
+    }
+
     return true;
 }
 
@@ -290,6 +306,7 @@ bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float h
     influxSensor.addField("temperature", temperature);
     influxSensor.addField("humidity", humidity);
     influxSensor.addTag("device", "Hygro" + deviceId.substring(6, 12)); // Hygro070D64
+    // influxSensor.addTag("device", "ESP32"); // Hygro070D64
 
     Serial.print(F(" - Writing: "));
     Serial.println(influxSensor.toLineProtocol());
@@ -315,10 +332,19 @@ void ESP32Adapter::blink_to_show(int message)
     int count = 0;
     int speed = 500;
 
+    if (message == MESSAGE_CONFIG_MODE_ENABLED) {
+        int status = digitalRead(INDICATOR_LED);
+        digitalWrite(INDICATOR_LED, !status);
+        delay(50);
+        digitalWrite(INDICATOR_LED, status);
+        return;
+    }
+
+
     switch(message) {
-        case MESSAGE_FAILED_TO_CONNECT: count = 2;              break;
-        case MESSAGE_FAILED_TO_READ:    count = 3; speed = 200; break;
-        case MESSAGE_FAILED_TO_WRITE:   count = 4; speed = 200; break;
+        case MESSAGE_FAILED_TO_CONNECT:   count = 2;              break;
+        case MESSAGE_FAILED_TO_READ:      count = 3; speed = 200; break;
+        case MESSAGE_FAILED_TO_WRITE:     count = 4; speed = 200; break;
     }
     
     while (count != 0) {

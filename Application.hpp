@@ -17,9 +17,11 @@
 #define MESSAGE_FAILED_TO_CONNECT   1
 #define MESSAGE_FAILED_TO_READ      2
 #define MESSAGE_FAILED_TO_WRITE     3
+#define MESSAGE_CONFIG_MODE_ENABLED 4
 
 //#define INDICATOR_LED LED_BUILTIN
-#define INDICATOR_LED 18
+#define INDICATOR_LED 18  // AdaFruit QT-PY A0
+// #define INDICATOR_LED 2  // DevKit DoIt
 
 struct DataReading { bool success; float value; };
 

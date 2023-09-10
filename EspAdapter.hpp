@@ -19,7 +19,8 @@
 
 // esp hardware
 #define LED_BUILTIN 2
-#define DHTPIN      14
+#define DHTPIN      35 // Adafruit QT
+// #define DHTPIN      15    // Devkit Do-it
 #define DHTTYPE     DHT22
 
 #define PREFS_RW_MODE false
