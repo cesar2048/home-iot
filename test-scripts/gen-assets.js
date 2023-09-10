@@ -21,8 +21,8 @@ const fn = async (sourceFiles, destPath) => {
             minifyCSS: true
         });
         await writeFile(interPath1, content);
+        
         sourcePath = interPath1;
-
         const source = createReadStream(sourcePath);
         const dest = createWriteStream(interPath2);
         await pipeline(source, zlib.createGzip(), dest);

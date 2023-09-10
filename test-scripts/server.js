@@ -7,8 +7,8 @@ const port = 3000;
 app.use(bodyParser.text('*/*'));
 
 app.post('/set-wifi', (req, res) => {
-    console.log(req.body);
-    res.send({'status': 'ok'});
+    console.log('BODY:', req.body);
+    // the server does not respond anymore
 });
 
 app.use(express.static('public'));
