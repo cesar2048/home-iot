@@ -18,10 +18,14 @@
 #include "Application.hpp"
 
 // esp hardware
-#define LED_BUILTIN 2
-#define DHTPIN      35 // Adafruit QT
-// #define DHTPIN      15    // Devkit Do-it
-#define DHTTYPE     DHT22
+#define LED_BUILTIN   2     // DevKit Do-It
+#define DHTTYPE       DHT22
+
+#if defined(NEOPIXEL_POWER)
+  #define DHTPIN  35 // Adafruit QT
+#else
+  #define DHTPIN  15 // Devkit Do-it
+#endif
 
 #define PREFS_RW_MODE false
 #define PREFS_RO_MODE true

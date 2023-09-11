@@ -157,18 +157,21 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
         size_t parserPos = 0;
         String ssid         = parseValue(body, parserPos); // posStart=0, posEQ=4, posLF=9
         String pass         = parseValue(body, parserPos); // posStart=10, posEQ=18, posLF=23
-        String influxUrl    = parseValue(body, parserPos); // posStart=23
+        String deviceName   = parseValue(body, parserPos);
+        String influxUrl    = parseValue(body, parserPos);
         String influxToken  = parseValue(body, parserPos);
         String influxOrg    = parseValue(body, parserPos);
         String influxBucket = parseValue(body, parserPos);
         
-        Serial.printf("Params check:\nSSID=[%s]\nPASS=[%s]\nInfluxURL=[%s]\nInfluxToken=[%s]\nInfluxOrg=[%s]\nInfluxBucket=[%s]\n", ssid.c_str(), pass.c_str(), influxUrl.c_str(), influxToken.c_str(), influxOrg.c_str(), influxBucket.c_str());
+        Serial.printf("Params check:\nSSID=[%s]\nPASS=[%s]\nDeviceName=[%s]\nInfluxURL=[%s]\nInfluxToken=[%s]\nInfluxOrg=[%s]\nInfluxBucket=[%s]\n",
+          ssid.c_str(), pass.c_str(), deviceName.c_str(), influxUrl.c_str(), influxToken.c_str(), influxOrg.c_str(), influxBucket.c_str());
 
         Preferences appPrefs;
         appPrefs.begin("appPrefs", PREFS_RW_MODE);
         appPrefs.putInt("state", APP_TEST);
         appPrefs.putString("ssid", ssid);
         appPrefs.putString("pass", pass);
+        appPrefs.putString("deviceName", deviceName);
         appPrefs.putString("influxUrl", influxUrl);
         appPrefs.putString("influxToken", influxToken);
         appPrefs.putString("influxOrg", influxOrg);
@@ -296,6 +299,8 @@ bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float h
     String influxToken  = appPrefs.getString("influxToken");
     String influxOrg    = appPrefs.getString("influxOrg");
     String influxBucket = appPrefs.getString("influxBucket");
+    String deviceName   = appPrefs.getString("deviceName");
+    
 
     String deviceId = WiFi.macAddress(); // example: 30:AE:A4:07:0D:64
     deviceId.replace(":", "");           // example: 30AEA4070D64
@@ -303,10 +308,10 @@ bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float h
     InfluxDBClient client(influxUrl, influxOrg, influxBucket, influxToken);
     Point influxSensor("ambient_status");
     influxSensor.clearFields();
+    influxSensor.addTag("hwid", "Hygro" + deviceId.substring(6, 12)); // Hygro070D64
+    influxSensor.addTag("device", deviceName);
     influxSensor.addField("temperature", temperature);
     influxSensor.addField("humidity", humidity);
-    influxSensor.addTag("device", "Hygro" + deviceId.substring(6, 12)); // Hygro070D64
-    // influxSensor.addTag("device", "ESP32"); // Hygro070D64
 
     Serial.print(F(" - Writing: "));
     Serial.println(influxSensor.toLineProtocol());

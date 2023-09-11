@@ -46,7 +46,8 @@
             <span>WiFi</span>
             <input name="ssid"      placeholder="SSID" />
             <input name="password"  placeholder="Shared Key" type="password" />
-            
+            <span>Device</span>
+            <input name="deviceName"    placeholder="Device name" />
             <span>InfluxDb</span>
             <input name="influxUrl"     placeholder="Url" />
             <input name="influxToken"   placeholder="token" />
@@ -70,6 +71,7 @@ mainForm.onsubmit = (evt) => {
     const data = {
         ssid    : mainForm.ssid.value,
         password: mainForm.password.value,
+        deviceName  : mainForm.deviceName.value,
         influxUrl   : mainForm.influxUrl.value,
         influxToken : mainForm.influxToken.value,
         influxOrg   : mainForm.influxOrg.value,
