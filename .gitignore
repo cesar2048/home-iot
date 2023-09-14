@@ -3,3 +3,5 @@ drivers
 env.h
 
 3dsmax-cases/AutoBackup*
+3dsmax-cases.mxp
+MaxBack.bak

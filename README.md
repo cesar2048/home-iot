@@ -1,5 +1,16 @@
 # Overview
 
+# Features
+  * "Configuration mode" starts an AP with a Web server to set parameters
+    LED blinks every 5 seconds in this mode
+    AP shows as "SupernovaIoT", configuration page is available at http://192.168.1.1/
+    Indicators:
+      * LED blink twice: Failed to connect to WiFi
+  * "Data aquisition mode" pushes a a new measurement every 1 minute
+    Indicators:
+      * LED blinks 4 times: Failed to write to InfluxDB
+      * LED blinks 3 times: Failed to read from sensor
+
 # References
   * [ESP32 WiFi Client](https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/WiFiClient/WiFiClient.ino)
   * [ESP32 DevKit 36 & 30 pin](https://www.etechnophiles.com/esp32-dev-board-pinout-specifications-datasheet-and-schematic/)
