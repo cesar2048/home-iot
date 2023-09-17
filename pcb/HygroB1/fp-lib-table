@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "HygroB1")(type "KiCad")(uri "E:/Users/Enrique/Documents/proyectos/ArduinoSketches/espHygrometer/pcb/HygroB1.pretty")(options "")(descr ""))
+)
