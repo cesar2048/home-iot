@@ -11,31 +11,40 @@
 #include <Wire.h>
 
 #include <Adafruit_Sensor.h>
+#include <Adafruit_NeoPixel.h>
 #include <DHT_U.h>
 #include <DHT.h>
 
 #include <Preferences.h>
 #include "Application.hpp"
 
-// esp hardware
-#define LED_BUILTIN   2     // DevKit Do-It
+// ESP hardware
+#define LED_BUILTIN   2  // DevKit Do-It
 #define DHTTYPE       DHT22
-
-#if defined(NEOPIXEL_POWER)
-  #define DHTPIN  35 // Adafruit QT
-#else
-  #define DHTPIN  15 // Devkit Do-it
-#endif
-
 #define PREFS_RW_MODE false
 #define PREFS_RO_MODE true
 
-// for influxdb
+// Adafruit NeoPixel
+#define COLOR_RED   0x00FF00 // red
+#define COLOR_GREEN 0xFF0000 // green
+#define COLOR_BLUE  0x0000FF // blue
+#define COLOR_OFF   0
+
+#define WAKEUP_STATE  1
+#if defined(NEOPIXEL_POWER)
+    // Adafruit QT
+    #define DHTPIN        35
+    #define WAKEUP_PIN    GPIO_NUM_16 // RX Pin
+#else
+    // Devkit Do-it
+    #define DHTPIN        15 
+    #define WAKEUP_PIN    GPIO_NUM_4
+#endif
+
+// influxdb
 #define TZ_INFO "UTC-6"
 
-
-// const char *ssid = "SupernovaIoT";
-extern const char *ssid;
+extern const char *baseAPName;
 
 class ESP32Adapter : public IOAdapter {
     WiFiServer server;
@@ -46,9 +55,10 @@ class ESP32Adapter : public IOAdapter {
 
 public:
     ESP32Adapter();
+    void init();
 
     int read_state();
-    void set_state(int state);
+    void set_state(int state, bool restart = false);
     void start_AP_server();
     void handle_client();
     bool start_wifi_client();
@@ -59,6 +69,13 @@ public:
     DataReading read_temperature();
     DataReading read_humidity();
     bool send_measurements_to_influx_server(float temperature, float humidity);
+    
+    void deepSleep(int milliSeconds);
+    int isWakeUpButtonOn();
+
+private:
+    void statusLed(int color);
+    int statusLedColor;
 };
 
 #endif /* ESP32IO_H_ */

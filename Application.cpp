@@ -1,18 +1,19 @@
 #include "Application.hpp"
 
-RTC_DATA_ATTR int               failureWriteCount   = 0;
+// RTC_DATA_ATTR int               failureWriteCount   = 0;
 RTC_DATA_ATTR SignalAccumulator temperatureAcc = { 0, 0 };
 RTC_DATA_ATTR SignalAccumulator humidityAcc    = { 0, 0 };
 RTC_DATA_ATTR SmoothCounter     smoother       = { SMOOTHING_FACTOR, 0 };
 int cyclesOnServer = 0;
+RTC_DATA_ATTR int cycleCount = 0;
 
 Application::Application(IOAdapter *adapterInstance):adapter(adapterInstance) {
 }
 
 void Application::setup() {
-    pinMode(INDICATOR_LED, OUTPUT);
-
     IOAdapter *a = this->adapter;
+    a->init();
+
     if (a->read_state() == APP_INIT) {
         Serial.println("Start in APP_INIT");
         a->start_AP_server();
@@ -24,12 +25,10 @@ void Application::setup() {
         if (!wifiConnected) {
             Serial.println("failed to connect to wifi");
             a->blink_to_show(MESSAGE_FAILED_TO_CONNECT);
-            a->set_state(APP_INIT);
-            a->restart();
+            a->set_state(APP_INIT, true);
         }
 
-        a->set_state(APP_CONFIGURED);
-        a->restart();
+        a->set_state(APP_CONFIGURED, true);
     }
 
     if (a->read_state() == APP_CONFIGURED) {
@@ -39,6 +38,7 @@ void Application::setup() {
 
 void Application::loop() {
     IOAdapter *a = this->adapter;
+
     if (a->read_state() == APP_INIT) {
         a->handle_client();
         if (++cyclesOnServer == 50) {
@@ -53,31 +53,48 @@ void Application::loop() {
         if (!temperature.success || !humidity.success) {
             Serial.printf("Reading: Temp: ERR, Hum: ERR\n");
             a->blink_to_show(MESSAGE_FAILED_TO_READ);
-            delay(1000);
-            return;
-        }
-        
-        Serial.printf("Reading: Temp: %f, Hum: %f\n", temperature.value, humidity.value);
-        SignalAdd(temperatureAcc, temperature.value);
-        SignalAdd(humidityAcc, humidity.value);
-        if (CounterIncrease(smoother)) {
-            a->start_wifi_client();
-            bool send_success = a->send_measurements_to_influx_server(
-                SignalClose(temperatureAcc, smoother.targetCount),
-                SignalClose(humidityAcc, smoother.targetCount)
-            );
-            if (!send_success) {
-                a->blink_to_show(MESSAGE_FAILED_TO_WRITE);
-                if (++failureWriteCount == MAX_WRITE_FAILURES) {
-                    Serial.println("Too many failures, reset");
-                    a->set_state(APP_INIT);
-                    a->restart();
+        } else {
+            Serial.printf("Reading: Temp: %f, Hum: %f\n", temperature.value, humidity.value);
+            SignalAdd(temperatureAcc, temperature.value);
+            SignalAdd(humidityAcc, humidity.value);
+            if (CounterIncrease(smoother)) {
+                a->start_wifi_client();
+                bool success = a->send_measurements_to_influx_server(
+                    SignalClose(temperatureAcc, smoother.targetCount),
+                    SignalClose(humidityAcc, smoother.targetCount)
+                );
+                if (!success) {
+                    a->blink_to_show(MESSAGE_FAILED_TO_WRITE);
                 }
             }
         }
+        a->deepSleep((60 - 6) * 1000 / SMOOTHING_FACTOR);
 
-        Serial.println("going deep sleep");
-        esp_sleep_enable_timer_wakeup(1000 * 1000 * (60 - 6) / SMOOTHING_FACTOR);
-        esp_deep_sleep_start();
+    } else if (a->read_state() == APP_WAKEUP) {
+
+        if (a->isWakeUpButtonOn()) {
+            if (++cyclesOnServer == 25) {
+                a->blink_to_show(MESSAGE_FAILED_TO_READ);
+                a->set_state(APP_INIT, true);
+            } else {
+                Serial.print("*");
+                delay(100);
+            }
+        } else {
+            a->set_state(APP_CONFIGURED, true);
+        }
     }
+    
+    /*
+    int val = digitalRead(GPIO_NUM_16);
+    if (val) {
+        Serial.print("*");
+    } else {
+        Serial.print("_");
+    }
+    if (cycleCount++ == 0) {
+        a->deepSleep(10*1000); // 10s
+    } else {
+        delay(100);
+    }*/
 }

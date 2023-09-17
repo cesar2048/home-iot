@@ -14,6 +14,8 @@
 #define APP_INIT                    0
 #define APP_TEST                    1
 #define APP_CONFIGURED              2
+#define APP_WAKEUP                  3
+
 #define MESSAGE_FAILED_TO_CONNECT   1
 #define MESSAGE_FAILED_TO_READ      2
 #define MESSAGE_FAILED_TO_WRITE     3
@@ -25,14 +27,14 @@
   #define INDICATOR_LED LED_BUILTIN // DevKit DoIt
 #endif
 
-
-
 struct DataReading { bool success; float value; };
 
 class IOAdapter {
 public:
+    virtual void init() = 0;
+
     virtual int read_state() = 0;
-    virtual void set_state(int) = 0;
+    virtual void set_state(int, bool restart = false) = 0;
     virtual void blink_to_show(int message) = 0;
     virtual void restart() = 0;
 
@@ -44,6 +46,9 @@ public:
     virtual DataReading read_temperature() = 0;
     virtual DataReading read_humidity() = 0;
     virtual bool send_measurements_to_influx_server(float temperature, float humidity) = 0;
+
+    virtual void deepSleep(int milliSeconds) = 0;
+    virtual int isWakeUpButtonOn() = 0;
 };
 
 class Application {

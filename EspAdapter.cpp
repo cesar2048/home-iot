@@ -2,11 +2,44 @@
 #include "test-scripts/public/output.c"
 #include "env.h"
 
-const char *ssid = "SupernovaIoT";
+const char *baseAPName = "Hyg";
 #define LIMIT_EMPTY_REQUESTS 5
 
-ESP32Adapter::ESP32Adapter() : server(80)
+void printWakeUpReason(){
+    esp_sleep_wakeup_cause_t wakeupReason;
+
+    wakeupReason = esp_sleep_get_wakeup_cause();
+
+    switch(wakeupReason){
+      case ESP_SLEEP_WAKEUP_EXT0     : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+      case ESP_SLEEP_WAKEUP_EXT1     : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+      case ESP_SLEEP_WAKEUP_TIMER    : Serial.println("Wakeup caused by timer"); break;
+      case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
+      case ESP_SLEEP_WAKEUP_ULP      : Serial.println("Wakeup caused by ULP program"); break;
+      default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeupReason); break;
+    }
+
+    if (wakeupReason == ESP_SLEEP_WAKEUP_EXT0) {
+        Preferences appPrefs;
+        appPrefs.begin("appPrefs", PREFS_RW_MODE);
+        appPrefs.putInt("state", APP_WAKEUP);
+    }
+}
+
+ESP32Adapter::ESP32Adapter() : server(80), statusLedColor(0)
 {
+}
+
+void ESP32Adapter::init() {
+    printWakeUpReason();
+
+    #ifndef NEOPIXEL_POWER
+        // Devkit Do-it
+        pinMode(WAKEUP_PIN, INPUT);
+        while(!Serial){delay(100);}
+    #else
+        pinMode(WAKEUP_PIN, INPUT); 
+    #endif
 }
 
 int ESP32Adapter::read_state()
@@ -25,22 +58,31 @@ int ESP32Adapter::read_state()
     return result;
 }
 
-void ESP32Adapter::set_state(int state) {
+void ESP32Adapter::set_state(int state, bool restart) {
     Preferences appPrefs;
     appPrefs.begin("appPrefs", PREFS_RW_MODE);
     appPrefs.putInt("state", state);
+
+    if (restart) {
+        this->restart();
+    }
 }
 
 void ESP32Adapter::start_AP_server()
 {
     Serial.println(F("Configuring access point..."));
 
-    IPAddress localIP(192, 168, 1, 1);
-    IPAddress gateway(192, 168, 1, 1);
+    IPAddress localIP(192, 168, 2, 1);
+    IPAddress gateway(192, 168, 2, 1);
     IPAddress subnet(255, 255, 255, 0);
 
+    String APName = String(baseAPName);
+    String deviceId = WiFi.macAddress(); // ex: 30:AE:A4:07:0D:64
+    deviceId.replace(":", "");           // ex: 30AEA4070D64
+    APName += deviceId.substring(8, 12); // Hyg0D64
+
     WiFi.softAPConfig(localIP, gateway, subnet);
-    if (!WiFi.softAP(ssid))
+    if (!WiFi.softAP(APName.c_str()))
     {
         log_e("Soft AP creation failed.");
     }
@@ -48,6 +90,7 @@ void ESP32Adapter::start_AP_server()
     IPAddress myIP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(myIP);
+    
     this->server.begin();
 
     Serial.println("Server started");
@@ -60,7 +103,7 @@ void ESP32Adapter::handle_client()
     if (client) // we got a client
     {
         int emptyRequestCount = 0;
-        Serial.println(F("New Client"));
+        Serial.println(F("Client connected"));
         while (client.connected())
         {
             String currentLine = "", method = "", url = "", body = "";
@@ -71,7 +114,6 @@ void ESP32Adapter::handle_client()
                 char c = client.read();
                 if (c != '\n') {
                     if (c != '\r') {
-                        // Serial.write(c);
                         currentLine += c; // add it to the end of the currentLine
                     }
                 } else {
@@ -84,18 +126,13 @@ void ESP32Adapter::handle_client()
                         ini = pos + 1;
                         pos = currentLine.indexOf(" ", ini);
                         url = currentLine.substring(ini, pos);
-                        //Serial.println("Method: " + method);
-                        //Serial.println("Url   : " + url);
                     }
                     else if (!hasAllHeaders)
                     { // parse header line
-                        if (currentLine != "") {
-                            // Serial.print("Header =>"); Serial.println(currentLine.c_str());
-                        } else {
+                        if (currentLine == "") {
                             hasAllHeaders = true;
                         }
                     } else {
-                        // Serial.print("-- body => "); Serial.println(currentLine.c_str());
                         body += currentLine + "\n";
                     }
 
@@ -107,24 +144,21 @@ void ESP32Adapter::handle_client()
             if (method == "") {
                 emptyRequestCount ++;
                 if (emptyRequestCount == LIMIT_EMPTY_REQUESTS) {
-                    Serial.println("B");
                     break;
                 } else {
-                    Serial.print("W");
-                    delay(10);
+                    delay(10); // wait for possible network delays
                     continue;
                 }
             }
 
-            Serial.printf("-- Process: method(%s), url(%s)\n", method.c_str(), url.c_str());
-
+            Serial.printf("Req: [%s] [%s]\n", method.c_str(), url.c_str());
             this->handle_request(client, method, url, body);
             break; // this simple server won't support keep-alive connections
         }
 
         // close the connection:
         client.stop();
-        Serial.println("Client Disconnected.");
+        Serial.println("Client Disconnected");
     }
 }
 
@@ -184,13 +218,13 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
         this->restart();
 
     } else if (url == "/H") {
-        digitalWrite(INDICATOR_LED, HIGH); // GET /H turns the LED on
+        this->statusLed(COLOR_GREEN);
         client.println("HTTP/1.1 302 Redirect");
         client.println("Location:/");
         client.println();
 
     } else if (url == "/L") {
-        digitalWrite(INDICATOR_LED, LOW); // GET /L turns the LED off
+        this->statusLed(COLOR_OFF);
         client.println("HTTP/1.1 302 Redirect");
         client.println("Location:/");
         client.println();
@@ -331,34 +365,65 @@ bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float h
     return true;
 }
 
-
 void ESP32Adapter::blink_to_show(int message)
 {
     int count = 0;
     int speed = 500;
+    int color = COLOR_GREEN; // green
 
     if (message == MESSAGE_CONFIG_MODE_ENABLED) {
-        int status = digitalRead(INDICATOR_LED);
-        digitalWrite(INDICATOR_LED, !status);
-        delay(50);
-        digitalWrite(INDICATOR_LED, status);
+        int status = this->statusLedColor;
+        this->statusLed(!status ? COLOR_GREEN : 0);
+        delay(25);
+        this->statusLed(status ? COLOR_GREEN : 0);
         return;
     }
 
-
     switch(message) {
-        case MESSAGE_FAILED_TO_CONNECT:   count = 2;              break;
-        case MESSAGE_FAILED_TO_READ:      count = 3; speed = 200; break;
-        case MESSAGE_FAILED_TO_WRITE:     count = 4; speed = 200; break;
+        case MESSAGE_FAILED_TO_CONNECT: color = COLOR_RED;  count = 2;              break;
+        case MESSAGE_FAILED_TO_READ:    color = COLOR_RED;  count = 3; speed = 200; break;
+        case MESSAGE_FAILED_TO_WRITE:   color = COLOR_RED;  count = 4; speed = 200; break;
     }
     
-    while (count != 0) {
-        count --;
-        digitalWrite(INDICATOR_LED, HIGH);
+    while (count-- != 0) {
+        this->statusLed(color);
         delay(speed);
-        digitalWrite(INDICATOR_LED, LOW);
+        this->statusLed(COLOR_OFF);
         if (count != 0) {
             delay(speed);
         }
     }
+}
+
+void ESP32Adapter::statusLed(int color) {
+    this->statusLedColor = color;
+    #ifndef NEOPIXEL_POWER
+        pinMode(INDICATOR_LED, OUTPUT);
+        digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
+    #else
+        #define NUMPIXELS 1
+        Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_RGB + NEO_KHZ800);
+        pinMode(NEOPIXEL_POWER, OUTPUT);
+        if (color) {
+            digitalWrite(NEOPIXEL_POWER, HIGH);
+            pixels.begin();
+            pixels.setBrightness(50);
+            pixels.fill(color);
+            pixels.show();
+        } else {
+            digitalWrite(NEOPIXEL_POWER, LOW);
+        }
+    #endif
+}
+
+void ESP32Adapter::deepSleep(int milliSeconds) {
+    Serial.println("going deep sleep");
+    esp_sleep_enable_timer_wakeup(1000 * milliSeconds);
+    esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_STATE);
+    esp_deep_sleep_start();
+}
+
+int ESP32Adapter::isWakeUpButtonOn() {
+    int pinStatus = digitalRead(WAKEUP_PIN);
+    return pinStatus == WAKEUP_STATE;
 }
