@@ -7,7 +7,7 @@
 #include "SmoothSignal.hpp"
 
 // application params
-#define SMOOTHING_FACTOR   4
+#define SMOOTHING_FACTOR   1 // TODO: conditionally make it a 4 for regular operation
 #define MAX_WRITE_FAILURES 3
 
 #define ROLE_WIFI       2 // performs the old logic
@@ -26,6 +26,9 @@
 #define MESSAGE_FAILED_TO_READ      2
 #define MESSAGE_FAILED_TO_WRITE     3
 #define MESSAGE_CONFIG_MODE_ENABLED 4
+#define MESSAGE_READ                5
+#define MESSAGE_BLE_SERVER          6
+#define MESSAGE_DEMO                7
 
 #if defined(NEOPIXEL_POWER)
   #define INDICATOR_LED 18  // AdaFruit QT-PY A0
@@ -42,15 +45,19 @@ public:
     virtual void set_state(int, bool restart = false) = 0;
     virtual void blink_to_show(int message) = 0;
     virtual void restart() = 0;
-    virtual void init_sensors() = 0;
-    virtual DataReading read_temperature() = 0;
-    virtual DataReading read_humidity() = 0;
+
     virtual void deepSleep(int milliSeconds) = 0;
     virtual int isWakeUpButtonOn() = 0;
 };
 
+class SensorProvider {
+public:
+    virtual bool init() =0;
+    virtual bool readValues(float *temp, float *humid) =0;
+};
 
 class WiFiAdapter {
+public:
     virtual void start_AP_server() = 0;
     virtual void handle_client() = 0;    
     virtual bool start_wifi_client() = 0;
@@ -58,21 +65,24 @@ class WiFiAdapter {
 };
 
 
-class BTAdapter {
+class BTServer {
 public:
     virtual void startAdvertising(std::string deviceName) =0;
-    virtual void setTemperature(float value) =0;
-    virtual void setHumidity(float value) =0;
+    virtual void setvalues(float temp, float humid) =0;
     virtual bool clientIsDone() =0;
 };
 
 
 class Application {
     IOAdapter *adapter;
-    BTAdapter *bt;
+    BTServer *bt;
     WiFiAdapter *wifi;
+    SensorProvider *sensor;
+
+    bool readValues(float *temp, float *humi);
+    bool cyclesDelay(int max, int delayMs);
 public:
-    Application(IOAdapter *adapterInstance, BTAdapter *btAdapter, WiFiAdapter *wifiAdapter);
+    Application(IOAdapter *adapterInstance, BTServer *btAdapter, WiFiAdapter *wifiAdapter, SensorProvider *sensor);
     void setup();
     void loop();
 };

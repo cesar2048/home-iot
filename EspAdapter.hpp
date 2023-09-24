@@ -1,16 +1,7 @@
 #ifndef ESP32IO_H_
 #define ESP32IO_H_
 
-#include <Adafruit_Sensor.h>
-#include <Adafruit_NeoPixel.h>
-#include <DHT_U.h>
-#include <DHT.h>
-
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
-
+#include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiAP.h>
 #include <WiFiMulti.h>
@@ -18,8 +9,18 @@
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
 #include <Wire.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
 
-#include <Preferences.h>
+#include <DHT_U.h>
+#include <DHT.h>
+
+#include <Adafruit_Sensor.h>
+#include <Adafruit_NeoPixel.h>
+#include <TinyPICO.h>
+
 #include "Application.hpp"
 
 // ESP hardware
@@ -29,9 +30,10 @@
 #define PREFS_RO_MODE true
 
 // Adafruit NeoPixel
-#define COLOR_RED   0x00FF00 // red
-#define COLOR_GREEN 0xFF0000 // green
-#define COLOR_BLUE  0x0000FF // blue
+#define COLOR_RED      0x0000FF00 // red
+#define COLOR_GREEN    0x00FF0000 // green
+#define COLOR_BLUE     0x000000FF // blue
+#define COLOR_RAINBOW  0xFF444444 // rainbow
 #define COLOR_OFF   0
 
 #define WAKEUP_STATE  1
@@ -51,8 +53,6 @@
 extern const char *baseAPName;
 
 class ESP32Adapter : public IOAdapter {
-    DHT_Unified *dht;
-
 public:
     ESP32Adapter();
     void init();
@@ -61,10 +61,10 @@ public:
     
     void blink_to_show(int message);
     void restart();
-    void init_sensors();
-
-    DataReading read_temperature();
-    DataReading read_humidity();
+    
+    // void init_sensors();
+    // DataReading read_temperature();
+    // DataReading read_humidity();
 
     void deepSleep(int milliSeconds);
     int isWakeUpButtonOn();
@@ -74,15 +74,49 @@ private:
     int statusLedColor;
 };
 
+// ------------------------- Sensors section -----------------
+
+class BTSensorProvider : public SensorProvider {
+    BLERemoteCharacteristic* pRemoteCharacteristic;
+    BLEClient*               pClient;
+    bool connect();
+public:
+    BLEAdvertisedDevice*     myDevice;
+    bool doScan;
+    bool init();
+    bool readValues(float *temp, float *humid);
+};
+/**
+ * Scan for BLE servers and find the first one that advertises the service we are looking for.
+ */
+class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
+    BTSensorProvider *btSensor;
+    void onResult(BLEAdvertisedDevice advertisedDevice);
+public:
+    MyAdvertisedDeviceCallbacks(BTSensorProvider *btSensor);
+};
+
+
+
+
+
+class DHTSensorProvider : public SensorProvider {
+    DHT_Unified *dht;
+public:
+    bool init();
+    bool readValues(float *temp, float *humid);
+};
+
 // ------------------------- Wifi section -----------------
 
-#if ROLE == ROLE_WIFI
+#if ROLE == ROLE_WIFI || ROLE == ROLE_BLE_CLIENT
     class ESP32Wifi : public WiFiAdapter {
         WiFiServer server;
         WiFiMulti *wifiMulti;
         void handle_request(WiFiClient &client, String &method, String &url, String &body);
 
     public:
+        ESP32Wifi();
         void start_AP_server();
         void handle_client();
         bool start_wifi_client();
@@ -103,12 +137,11 @@ private:
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-class ESPBTAdapter : public BTAdapter {
+class ESPBTAdapter : public BTServer {
 public:
     ESPBTAdapter();
     void startAdvertising(std::string deviceName);
-    void setTemperature(float value);
-    void setHumidity(float value);
+    void setvalues(float temp, float humid);
     bool clientIsDone();
 
     bool clientWroteSomething;

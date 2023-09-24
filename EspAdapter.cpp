@@ -5,7 +5,7 @@
 const char *baseAPName = "Hyg";
 #define LIMIT_EMPTY_REQUESTS 5
 
-void printWakeUpReason(){
+void printWakeUpReason() {
     esp_sleep_wakeup_cause_t wakeupReason;
 
     wakeupReason = esp_sleep_get_wakeup_cause();
@@ -41,8 +41,7 @@ void ESP32Adapter::init() {
     #endif
 }
 
-int ESP32Adapter::read_state()
-{
+int ESP32Adapter::read_state() {
     int result = APP_INIT;
     Preferences appPrefs;
     appPrefs.begin("appPrefs", PREFS_RW_MODE);
@@ -67,42 +66,8 @@ void ESP32Adapter::set_state(int state, bool restart) {
     }
 }
 
-
-
-void ESP32Adapter::restart()
-{
+void ESP32Adapter::restart() {
     ESP.restart();
-}
-
-void ESP32Adapter::init_sensors() {
-    this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
-    this->dht->begin();
-}
-
-DataReading ESP32Adapter::read_temperature()
-{
-    sensors_event_t evt;
-    this->dht->temperature().getEvent(&evt);
-
-    if (isnan(evt.temperature)) {
-        // Serial.println(F("Sensor: Temperature error"));
-        return DataReading{false, 0 };
-    }
-    
-    return DataReading{true, evt.temperature };
-}
-
-DataReading ESP32Adapter::read_humidity()
-{
-    sensors_event_t evt;
-    this->dht->humidity().getEvent(&evt);
-
-    if (isnan(evt.relative_humidity)) {
-        // Serial.println(F("Sensor: Humidity error"));
-        return DataReading{false, 0 };
-    }
-
-    return DataReading{true, evt.relative_humidity };
 }
 
 
@@ -111,6 +76,11 @@ void ESP32Adapter::blink_to_show(int message)
     int count = 0;
     int speed = 500;
     int color = COLOR_GREEN; // green
+
+    if (message == MESSAGE_DEMO) {
+        this->statusLed(COLOR_RAINBOW);
+        return;
+    }
 
     if (message == MESSAGE_CONFIG_MODE_ENABLED) {
         int status = this->statusLedColor;
@@ -124,6 +94,9 @@ void ESP32Adapter::blink_to_show(int message)
         case MESSAGE_FAILED_TO_CONNECT: color = COLOR_RED;  count = 2;              break;
         case MESSAGE_FAILED_TO_READ:    color = COLOR_RED;  count = 3; speed = 200; break;
         case MESSAGE_FAILED_TO_WRITE:   color = COLOR_RED;  count = 4; speed = 200; break;
+
+        case MESSAGE_READ:         color = COLOR_GREEN;  count = 2; speed = 200; break;
+        case MESSAGE_BLE_SERVER:   color = COLOR_BLUE;   count = 3; speed = 200; break;
     }
     
     while (count-- != 0) {
@@ -138,10 +111,8 @@ void ESP32Adapter::blink_to_show(int message)
 
 void ESP32Adapter::statusLed(int color) {
     this->statusLedColor = color;
-    #ifndef NEOPIXEL_POWER
-        pinMode(INDICATOR_LED, OUTPUT);
-        digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
-    #else
+    #ifdef NEOPIXEL_POWER
+        // Adafruit QT Py
         #define NUMPIXELS 1
         Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_RGB + NEO_KHZ800);
         pinMode(NEOPIXEL_POWER, OUTPUT);
@@ -154,6 +125,25 @@ void ESP32Adapter::statusLed(int color) {
         } else {
             digitalWrite(NEOPIXEL_POWER, LOW);
         }
+    #else
+        #ifdef APA_POWER
+            // TinyPico
+            Serial.print("ESP: tinypico status Led %i\n", color);
+            TinyPICO tp = TinyPICO();
+            if (color) {
+                if (color == COLOR_RAINBOW) {
+                    tp.DotStar_CycleColor(25);
+                } else {
+                    tp.DotStar_SetPixelColor( 0xFFC900 );
+                }
+            } else {
+                tp.DotStar_SetPower( false );
+            }
+        #else
+            // Devkit DoIt
+            pinMode(INDICATOR_LED, OUTPUT);
+            digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
+        #endif
     #endif
 }
 
@@ -169,13 +159,164 @@ int ESP32Adapter::isWakeUpButtonOn() {
     return pinStatus == WAKEUP_STATE;
 }
 
+// ----------------------------- Sensors section (DHT)  ------------------------------------
 
-// ----------------------------- WiFi section   ------------------------------------
+bool DHTSensorProvider::init() {
+    Serial.println("DHT: sensor init");
+    this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
+    this->dht->begin();
+    Serial.println("DHT: init DONE");
+    return true;
+}
 
-#if ROLE == ROLE_WIFI
+bool DHTSensorProvider::readValues(float *temp, float *humid) {
+    Serial.println("DHT: sensor read values");
+
+    sensors_event_t evt;
+    this->dht->temperature().getEvent(&evt);
+    if (isnan(evt.temperature)) {
+        return false;
+    }
+    *temp = evt.temperature;
+
+
+    this->dht->humidity().getEvent(&evt);
+    if (isnan(evt.relative_humidity)) {
+        return false;
+    }
+    *humid = evt.relative_humidity;
+
+    return true;
+}
+
+// ----------------------------- Sensors section (BlueTooth Client)  ------------------------------------
+
+MyAdvertisedDeviceCallbacks::MyAdvertisedDeviceCallbacks(BTSensorProvider *btSensor): btSensor(btSensor) {
+}
+
+/**
+ * Called for each advertising BLE server.
+ */
+void MyAdvertisedDeviceCallbacks::onResult(BLEAdvertisedDevice advertisedDevice) {
+    // We have found a device, let us now see if it contains the service we are looking for.
+    BLEUUID serviceUUID(SERVICE_UUID);
+    if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(serviceUUID)) {
+        Serial.printf("BLE: Found [%s]\n", advertisedDevice.toString().c_str());
+
+        BLEDevice::getScan()->stop();
+        btSensor->doScan   = false;
+        btSensor->myDevice = new BLEAdvertisedDevice(advertisedDevice);
+    }
+}
+
+
+bool BTSensorProvider::init() {
+    doScan = true;
+
+    Serial.println("BLE: Starting client...");
+    BLEDevice::init("");
+    // Retrieve a Scanner and set the callback we want to use to be informed when we
+    // have detected a new device.  Specify that we want active scanning and start the
+    // scan to run for 5 seconds.
+    BLEScan* pBLEScan = BLEDevice::getScan();
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(this));
+    pBLEScan->setInterval(1349);
+    pBLEScan->setWindow(449);
+    pBLEScan->setActiveScan(true);
+    return true;
+}
+
+bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
+    Serial.println("BLE: scanning devices");
+    doScan = true;
+    while(doScan) {
+        Serial.println("BLE: scanning devices");
+        BLEDevice::getScan()->start(5);
+    }
+    Serial.println("BLE: scan finished");
+
+    if (!connect()) {
+        return false;
+    }
+
+    // Read the value of the characteristic.
+    bool result = false;
+    if (pRemoteCharacteristic->canRead()) {
+        std::string value = pRemoteCharacteristic->readValue();
+        uint8_t* pData = pRemoteCharacteristic->readRawData();
+        
+        if (value.length() >= 8) {
+            float *values = (float*)pData;
+            *outTemp = values[0];
+            *outHumi = values[1];
+            Serial.printf("READ: values: [ %f, %f ]\n", *outTemp, *outHumi);
+            result = true;
+        } else {
+            Serial.printf("READ: unexpected data: [ ");
+            for (int i=0; i <value.length(); i++) {
+                Serial.printf("0x%X ", pData[i]);
+            }
+            Serial.printf("]\n");
+        }
+    }
+
+    // Write to the characteristic.
+    String newValue = "Time since boot: " + String(millis() / 1000);
+    Serial.println("BLE: Write value: \"" + newValue + "\"");
+    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
+    Serial.println("BLE: Write DONE");
+
+    // finally disconnect
+    pClient->disconnect();
+    return result;
+}
+
+bool BTSensorProvider::connect() {
+    BLEUUID serviceUUID(SERVICE_UUID);
+    BLEUUID charUUID(CHARACTERISTIC_UUID);
+
+    Serial.print("Connecting to: ");
+    Serial.println(myDevice->getAddress().toString().c_str());
+
+    pClient = BLEDevice::createClient();
+    Serial.println(" - Created client");
+
+    // pClient->setClientCallbacks(new MyClientCallback());
+
+    // Connect to the remove BLE Server.
+    pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+    Serial.println(" - Connected to server");
+    pClient->setMTU(517);  //set client to request maximum MTU from server (default is 23 otherwise)
+
+    // Obtain a reference to the service we are after in the remote BLE server.
+    BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
+    if (pRemoteService == nullptr) {
+        Serial.print("Failed to find our service UUID: ");
+        Serial.println(serviceUUID.toString().c_str());
+        pClient->disconnect();
+        return false;
+    }
+    Serial.println(" - Found our service");
+
+
+    // Obtain a reference to the characteristic in the service of the remote BLE server.
+    pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
+    if (pRemoteCharacteristic == nullptr) {
+        Serial.print("Failed to find our characteristic UUID: ");
+        Serial.println(charUUID.toString().c_str());
+        pClient->disconnect();
+        return false;
+    }
+    Serial.println(" - Found our characteristic");
+
+    return true;
+}
+
+// ----------------------------- WiFi section (Real impl)  ------------------------------------
+
+#if ROLE == ROLE_WIFI || ROLE == ROLE_BLE_CLIENT
 
 ESP32Wifi::ESP32Wifi() : server(80) {
-
 }
 
 void ESP32Wifi::start_AP_server()
@@ -329,13 +470,15 @@ void ESP32Wifi::handle_request(WiFiClient &client, String &method, String &url, 
         // TODO: Propagate reference to restart in APP level
 
     } else if (url == "/H") {
-        this->statusLed(COLOR_GREEN);
+        // this->statusLed(COLOR_GREEN);
+        // TODO: Propagate reference to restart in APP level
         client.println("HTTP/1.1 302 Redirect");
         client.println("Location:/");
         client.println();
 
     } else if (url == "/L") {
-        this->statusLed(COLOR_OFF);
+        // this->statusLed(COLOR_OFF);
+        // TODO: Propagate reference to restart in APP level
         client.println("HTTP/1.1 302 Redirect");
         client.println("Location:/");
         client.println();
@@ -443,8 +586,7 @@ bool ESP32Wifi::send_measurements_to_influx_server(float temperature, float humi
 
 // ----------------------------- WiFi section   ------------------------------------
 
-#if ROLE == ROLE_WIFI
-#else
+#if ROLE == ROLE_BLE_SERVER
 
 void DummyWifi::start_AP_server() {
     Serial.println("DummyWifi: start_AP_server()");
@@ -530,12 +672,9 @@ void ESPBTAdapter::startAdvertising(std::string deviceName) {
     Serial.println("BLE: Advertising, waiting for client connection");
 }
 
-void ESPBTAdapter::setTemperature(float value) {
-    temp = value;
-}
-
-void ESPBTAdapter::setHumidity(float value) {
-    humidity = value;
+void ESPBTAdapter::setvalues(float temp, float humid) {
+    this->temp = temp;
+    this->humidity = humid;
 }
 
 bool ESPBTAdapter::clientIsDone() {

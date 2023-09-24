@@ -16,10 +16,16 @@
 ESP32Adapter adapter;
 ESPBTAdapter btAdapter;
 
-#if ROLE == ROLE_WIFI
+#if ROLE == ROLE_WIFI || ROLE == ROLE_BLE_CLIENT
     ESP32Wifi wifiAdapter;
 #else
     DummyWifi wifiAdapter;
+#endif
+
+#if ROLE == ROLE_BLE_CLIENT
+    BTSensorProvider sensors;
+#else
+    DHTSensorProvider sensors;
 #endif
 
 Application *main_app;
@@ -28,7 +34,8 @@ void setup() {
     Serial.begin(115200);
     delay(1500);
 
-    main_app = new Application(&adapter, &btAdapter, &wifiAdapter);
+    Serial.println("STARTUP");
+    main_app = new Application(&adapter, &btAdapter, &wifiAdapter, &sensors);
     main_app->setup();
 }
 
