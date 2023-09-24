@@ -5,18 +5,22 @@
 RTC_DATA_ATTR SignalAccumulator temperatureAcc = { 0, 0 };
 RTC_DATA_ATTR SignalAccumulator humidityAcc    = { 0, 0 };
 RTC_DATA_ATTR SmoothCounter     smoother       = { SMOOTHING_FACTOR, 0 };
-int cyclesOnServer           = 0;
 RTC_DATA_ATTR int cycleCount = 0;
+int cyclesOnServer           = 0;
 bool performedRead           = false;
 TinyPICO tp = TinyPICO();
 
-Application::Application(IOAdapter *adapterInstance, BTAdapter *btInstance):adapter(adapterInstance), bt(btInstance) {
+Application::Application(IOAdapter *adapterInstance, BTAdapter *btInstance, WiFiAdapter *wifiAdapter):
+    adapter(adapterInstance),
+    bt(btInstance),
+    wifi(wifiAdapter)
+{
 }
 
 void Application::setup() {
     IOAdapter *a = this->adapter;
     a->init();
-    if (ROLE == ROLE_SERVER) {
+    #if ROLE == ROLE_BLE_SERVER
         if (a->isWakeUpButtonOn()) {
             if (a->read_state() == APP_INIT) {
                 Serial.println("Change to APP_CONFIGURED");
@@ -27,7 +31,9 @@ void Application::setup() {
             }
         }
         a->init_sensors();
-    } else {
+    #endif
+
+    #if ROLE == ROLE_WIFI
         if (a->read_state() == APP_INIT) {
             Serial.println("Start in APP_INIT");
             a->start_AP_server();
@@ -48,13 +54,13 @@ void Application::setup() {
         if (a->read_state() == APP_CONFIGURED) {
             a->init_sensors();
         }
-    }
+    #endif
 }
 
 void Application::loop() {
     IOAdapter *a = this->adapter;
 
-    if (ROLE == ROLE_SERVER) {
+    #if ROLE == ROLE_BLE_SERVER
         // ROLE SERVER
         if (a->read_state() == APP_INIT) {
             tp.DotStar_CycleColor(25);
@@ -71,9 +77,9 @@ void Application::loop() {
                     SignalAdd(temperatureAcc, temperature.value);
                     SignalAdd(humidityAcc, humidity.value);
                     if (CounterIncrease(smoother)) {
-                        bt->startAdvertising("SupernovaIoT");
                         bt->setTemperature(SignalClose(temperatureAcc, smoother.targetCount));
                         bt->setHumidity(SignalClose(humidityAcc, smoother.targetCount));
+                        bt->startAdvertising("SupernovaIoT");
                         performedRead = true;
                     } else {
                         a->deepSleep((60 - 6) * 1000 / SMOOTHING_FACTOR); // does not return
@@ -84,12 +90,18 @@ void Application::loop() {
                     a->deepSleep((60 - 6) * 1000 / SMOOTHING_FACTOR); // does not return
                 } else {
                     delay(100);
+                    cyclesOnServer ++;
+                    if (cyclesOnServer == 100) {
+                        Serial.println("BLE: Client did not talked to us, continuing...");
+                        a->deepSleep((60 - 6) * 1000 / SMOOTHING_FACTOR); // does not return
+                    }
                 }
             }
         }
         // ROLE SERVER
-    } else {
-        // ROLE CLIENT
+    #endif
+
+    #if ROLE == ROLE_WIFI // ROLE_WIFI
         if (a->read_state() == APP_INIT) {
             a->handle_client();
             if (++cyclesOnServer == 50) {
@@ -135,7 +147,6 @@ void Application::loop() {
                 a->set_state(APP_CONFIGURED, true);
             }
         }
-        // ROLE CLIENT
-    }
+    #endif // ROLE_WIFI
 
 }

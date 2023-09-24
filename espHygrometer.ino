@@ -15,13 +15,20 @@
 
 ESP32Adapter adapter;
 ESPBTAdapter btAdapter;
+
+#if ROLE == ROLE_WIFI
+    ESP32Wifi wifiAdapter;
+#else
+    DummyWifi wifiAdapter;
+#endif
+
 Application *main_app;
 
 void setup() {
     Serial.begin(115200);
     delay(1500);
 
-    main_app = new Application(&adapter, &btAdapter);
+    main_app = new Application(&adapter, &btAdapter, &wifiAdapter);
     main_app->setup();
 }
 

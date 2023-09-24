@@ -26,8 +26,7 @@ void printWakeUpReason(){
     }
 }
 
-ESP32Adapter::ESP32Adapter() : server(80), statusLedColor(0)
-{
+ESP32Adapter::ESP32Adapter() : statusLedColor(0) {
 }
 
 void ESP32Adapter::init() {
@@ -68,7 +67,118 @@ void ESP32Adapter::set_state(int state, bool restart) {
     }
 }
 
-void ESP32Adapter::start_AP_server()
+
+
+void ESP32Adapter::restart()
+{
+    ESP.restart();
+}
+
+void ESP32Adapter::init_sensors() {
+    this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
+    this->dht->begin();
+}
+
+DataReading ESP32Adapter::read_temperature()
+{
+    sensors_event_t evt;
+    this->dht->temperature().getEvent(&evt);
+
+    if (isnan(evt.temperature)) {
+        // Serial.println(F("Sensor: Temperature error"));
+        return DataReading{false, 0 };
+    }
+    
+    return DataReading{true, evt.temperature };
+}
+
+DataReading ESP32Adapter::read_humidity()
+{
+    sensors_event_t evt;
+    this->dht->humidity().getEvent(&evt);
+
+    if (isnan(evt.relative_humidity)) {
+        // Serial.println(F("Sensor: Humidity error"));
+        return DataReading{false, 0 };
+    }
+
+    return DataReading{true, evt.relative_humidity };
+}
+
+
+void ESP32Adapter::blink_to_show(int message)
+{
+    int count = 0;
+    int speed = 500;
+    int color = COLOR_GREEN; // green
+
+    if (message == MESSAGE_CONFIG_MODE_ENABLED) {
+        int status = this->statusLedColor;
+        this->statusLed(!status ? COLOR_GREEN : 0);
+        delay(25);
+        this->statusLed(status ? COLOR_GREEN : 0);
+        return;
+    }
+
+    switch(message) {
+        case MESSAGE_FAILED_TO_CONNECT: color = COLOR_RED;  count = 2;              break;
+        case MESSAGE_FAILED_TO_READ:    color = COLOR_RED;  count = 3; speed = 200; break;
+        case MESSAGE_FAILED_TO_WRITE:   color = COLOR_RED;  count = 4; speed = 200; break;
+    }
+    
+    while (count-- != 0) {
+        this->statusLed(color);
+        delay(speed);
+        this->statusLed(COLOR_OFF);
+        if (count != 0) {
+            delay(speed);
+        }
+    }
+}
+
+void ESP32Adapter::statusLed(int color) {
+    this->statusLedColor = color;
+    #ifndef NEOPIXEL_POWER
+        pinMode(INDICATOR_LED, OUTPUT);
+        digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
+    #else
+        #define NUMPIXELS 1
+        Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_RGB + NEO_KHZ800);
+        pinMode(NEOPIXEL_POWER, OUTPUT);
+        if (color) {
+            digitalWrite(NEOPIXEL_POWER, HIGH);
+            pixels.begin();
+            pixels.setBrightness(50);
+            pixels.fill(color);
+            pixels.show();
+        } else {
+            digitalWrite(NEOPIXEL_POWER, LOW);
+        }
+    #endif
+}
+
+void ESP32Adapter::deepSleep(int milliSeconds) {
+    Serial.println("going deep sleep");
+    esp_sleep_enable_timer_wakeup(1000 * milliSeconds);
+    esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_STATE);
+    esp_deep_sleep_start();
+}
+
+int ESP32Adapter::isWakeUpButtonOn() {
+    int pinStatus = digitalRead(WAKEUP_PIN);
+    return pinStatus == WAKEUP_STATE;
+}
+
+
+// ----------------------------- WiFi section   ------------------------------------
+
+#if ROLE == ROLE_WIFI
+
+ESP32Wifi::ESP32Wifi() : server(80) {
+
+}
+
+void ESP32Wifi::start_AP_server()
 {
     Serial.println(F("Configuring access point..."));
 
@@ -96,7 +206,7 @@ void ESP32Adapter::start_AP_server()
     Serial.println("Server started");
 }
 
-void ESP32Adapter::handle_client()
+void ESP32Wifi::handle_client()
 {
     WiFiClient client = this->server.available(); // listen for incoming clients
 
@@ -172,7 +282,7 @@ String parseValue(String& body, size_t& posStart) {
     return body.substring(posEQ+1, posLF);
 }
 
-void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &url, String &body) {
+void ESP32Wifi::handle_request(WiFiClient &client, String &method, String &url, String &body) {
     // Write response code and HTTP headers
     if (method == "get" && url == "/") {
         client.println("HTTP/1.1 200 OK");
@@ -215,7 +325,8 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
         client.println("Location:/");
         client.println();
 
-        this->restart();
+        // this->restart();
+        // TODO: Propagate reference to restart in APP level
 
     } else if (url == "/H") {
         this->statusLed(COLOR_GREEN);
@@ -236,7 +347,7 @@ void ESP32Adapter::handle_request(WiFiClient &client, String &method, String &ur
     }
 }
 
-bool ESP32Adapter::start_wifi_client()
+bool ESP32Wifi::start_wifi_client()
 {
     Preferences appPrefs;
     appPrefs.begin("appPrefs", PREFS_RO_MODE);
@@ -289,43 +400,8 @@ bool ESP32Adapter::start_wifi_client()
     return true;
 }
 
-void ESP32Adapter::restart()
-{
-    ESP.restart();
-}
 
-void ESP32Adapter::init_sensors() {
-    this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
-    this->dht->begin();
-}
-
-DataReading ESP32Adapter::read_temperature()
-{
-    sensors_event_t evt;
-    this->dht->temperature().getEvent(&evt);
-
-    if (isnan(evt.temperature)) {
-        // Serial.println(F("Sensor: Temperature error"));
-        return DataReading{false, 0 };
-    }
-    
-    return DataReading{true, evt.temperature };
-}
-
-DataReading ESP32Adapter::read_humidity()
-{
-    sensors_event_t evt;
-    this->dht->humidity().getEvent(&evt);
-
-    if (isnan(evt.relative_humidity)) {
-        // Serial.println(F("Sensor: Humidity error"));
-        return DataReading{false, 0 };
-    }
-
-    return DataReading{true, evt.relative_humidity };
-}
-
-bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float humidity)
+bool ESP32Wifi::send_measurements_to_influx_server(float temperature, float humidity)
 {
     Preferences appPrefs;
     appPrefs.begin("appPrefs", PREFS_RO_MODE);
@@ -335,7 +411,6 @@ bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float h
     String influxBucket = appPrefs.getString("influxBucket");
     String deviceName   = appPrefs.getString("deviceName");
     
-
     String deviceId = WiFi.macAddress(); // example: 30:AE:A4:07:0D:64
     deviceId.replace(":", "");           // example: 30AEA4070D64
 
@@ -364,69 +439,27 @@ bool ESP32Adapter::send_measurements_to_influx_server(float temperature, float h
 
     return true;
 }
+#endif
 
-void ESP32Adapter::blink_to_show(int message)
-{
-    int count = 0;
-    int speed = 500;
-    int color = COLOR_GREEN; // green
+// ----------------------------- WiFi section   ------------------------------------
 
-    if (message == MESSAGE_CONFIG_MODE_ENABLED) {
-        int status = this->statusLedColor;
-        this->statusLed(!status ? COLOR_GREEN : 0);
-        delay(25);
-        this->statusLed(status ? COLOR_GREEN : 0);
-        return;
-    }
+#if ROLE == ROLE_WIFI
+#else
 
-    switch(message) {
-        case MESSAGE_FAILED_TO_CONNECT: color = COLOR_RED;  count = 2;              break;
-        case MESSAGE_FAILED_TO_READ:    color = COLOR_RED;  count = 3; speed = 200; break;
-        case MESSAGE_FAILED_TO_WRITE:   color = COLOR_RED;  count = 4; speed = 200; break;
-    }
-    
-    while (count-- != 0) {
-        this->statusLed(color);
-        delay(speed);
-        this->statusLed(COLOR_OFF);
-        if (count != 0) {
-            delay(speed);
-        }
-    }
+void DummyWifi::start_AP_server() {
+    Serial.println("DummyWifi: start_AP_server()");
+}
+void DummyWifi::handle_client() {
+    Serial.println("DummyWifi: handle_client()");
+}
+bool DummyWifi::start_wifi_client() {
+    Serial.println("DummyWifi: start_wifi_client()");
+}
+bool DummyWifi::send_measurements_to_influx_server(float temperature, float humidity) {
+    Serial.println("DummyWifi: send_measurements_to_influx_server");
 }
 
-void ESP32Adapter::statusLed(int color) {
-    this->statusLedColor = color;
-    #ifndef NEOPIXEL_POWER
-        pinMode(INDICATOR_LED, OUTPUT);
-        digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
-    #else
-        #define NUMPIXELS 1
-        Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_RGB + NEO_KHZ800);
-        pinMode(NEOPIXEL_POWER, OUTPUT);
-        if (color) {
-            digitalWrite(NEOPIXEL_POWER, HIGH);
-            pixels.begin();
-            pixels.setBrightness(50);
-            pixels.fill(color);
-            pixels.show();
-        } else {
-            digitalWrite(NEOPIXEL_POWER, LOW);
-        }
-    #endif
-}
-
-void ESP32Adapter::deepSleep(int milliSeconds) {
-    Serial.println("going deep sleep");
-    esp_sleep_enable_timer_wakeup(1000 * milliSeconds);
-    esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_STATE);
-    esp_deep_sleep_start();
-}
-
-int ESP32Adapter::isWakeUpButtonOn() {
-    int pinStatus = digitalRead(WAKEUP_PIN);
-    return pinStatus == WAKEUP_STATE;
-}
+#endif
 
 // ----------------------------- bluetooth section ----------------------------------
 
@@ -483,6 +516,7 @@ void ESPBTAdapter::startAdvertising(std::string deviceName) {
     pCharacteristic->setCallbacks(new CharacteristicCallbacks(this));
     float values[2] = {temp, humidity};
     pCharacteristic->setValue((uint8_t*)values, 8);
+    Serial.printf("BLE: values available {%f, %f}\n", temp, humidity);
 
     // Start the service
     pService->start();
@@ -495,12 +529,15 @@ void ESPBTAdapter::startAdvertising(std::string deviceName) {
     BLEDevice::startAdvertising();
     Serial.println("BLE: Advertising, waiting for client connection");
 }
+
 void ESPBTAdapter::setTemperature(float value) {
     temp = value;
 }
+
 void ESPBTAdapter::setHumidity(float value) {
     humidity = value;
 }
+
 bool ESPBTAdapter::clientIsDone() {
     return clientWroteSomething;
 }

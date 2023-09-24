@@ -10,9 +10,11 @@
 #define SMOOTHING_FACTOR   4
 #define MAX_WRITE_FAILURES 3
 
-#define ROLE_SERVER 1 // reads from sensor, advertises, and gets read by client
-#define ROLE_CLIENT 0 // scans for servers and reads value from client
-#define ROLE        ROLE_SERVER
+#define ROLE_WIFI       2 // performs the old logic
+#define ROLE_BLE_SERVER 1 // reads from sensor, advertises, and gets read by client
+#define ROLE_BLE_CLIENT 0 // scans for servers and reads value from client
+
+#define ROLE            ROLE_BLE_SERVER
 
 // constants
 #define APP_INIT                    0
@@ -36,24 +38,25 @@ struct DataReading { bool success; float value; };
 class IOAdapter {
 public:
     virtual void init() = 0;
-
     virtual int read_state() = 0;
     virtual void set_state(int, bool restart = false) = 0;
     virtual void blink_to_show(int message) = 0;
     virtual void restart() = 0;
-
-    virtual void start_AP_server() = 0;
-    virtual void handle_client() = 0;
-    
-    virtual bool start_wifi_client() = 0;
     virtual void init_sensors() = 0;
     virtual DataReading read_temperature() = 0;
     virtual DataReading read_humidity() = 0;
-    virtual bool send_measurements_to_influx_server(float temperature, float humidity) = 0;
-
     virtual void deepSleep(int milliSeconds) = 0;
     virtual int isWakeUpButtonOn() = 0;
 };
+
+
+class WiFiAdapter {
+    virtual void start_AP_server() = 0;
+    virtual void handle_client() = 0;    
+    virtual bool start_wifi_client() = 0;
+    virtual bool send_measurements_to_influx_server(float temperature, float humidity) = 0;
+};
+
 
 class BTAdapter {
 public:
@@ -63,12 +66,13 @@ public:
     virtual bool clientIsDone() =0;
 };
 
+
 class Application {
     IOAdapter *adapter;
     BTAdapter *bt;
-
+    WiFiAdapter *wifi;
 public:
-    Application(IOAdapter *adapterInstance, BTAdapter *btAdapter);
+    Application(IOAdapter *adapterInstance, BTAdapter *btAdapter, WiFiAdapter *wifiAdapter);
     void setup();
     void loop();
 };
