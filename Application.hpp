@@ -10,6 +10,10 @@
 #define SMOOTHING_FACTOR   4
 #define MAX_WRITE_FAILURES 3
 
+#define ROLE_SERVER 1 // reads from sensor, advertises, and gets read by client
+#define ROLE_CLIENT 0 // scans for servers and reads value from client
+#define ROLE        ROLE_SERVER
+
 // constants
 #define APP_INIT                    0
 #define APP_TEST                    1
@@ -51,11 +55,20 @@ public:
     virtual int isWakeUpButtonOn() = 0;
 };
 
+class BTAdapter {
+public:
+    virtual void startAdvertising(std::string deviceName) =0;
+    virtual void setTemperature(float value) =0;
+    virtual void setHumidity(float value) =0;
+    virtual bool clientIsDone() =0;
+};
+
 class Application {
     IOAdapter *adapter;
+    BTAdapter *bt;
 
 public:
-    Application(IOAdapter *adapterInstance);
+    Application(IOAdapter *adapterInstance, BTAdapter *btAdapter);
     void setup();
     void loop();
 };

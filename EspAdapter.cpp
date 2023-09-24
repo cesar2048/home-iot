@@ -427,3 +427,80 @@ int ESP32Adapter::isWakeUpButtonOn() {
     int pinStatus = digitalRead(WAKEUP_PIN);
     return pinStatus == WAKEUP_STATE;
 }
+
+// ----------------------------- bluetooth section ----------------------------------
+
+CharacteristicCallbacks::CharacteristicCallbacks(ESPBTAdapter *adapter): btAdapter(adapter) {
+}
+
+void CharacteristicCallbacks::onWrite(BLECharacteristic* pCharacteristic, esp_ble_gatts_cb_param_t* param) {
+    Serial.printf("BLE: Client wrote: %s\n", pCharacteristic->getValue().c_str());
+    btAdapter->clientWroteSomething = true;
+}
+
+
+
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+        Serial.println("BLE: Client connected");
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+        Serial.println("BLE: Client disconnected");
+    }
+};
+
+
+
+
+ESPBTAdapter::ESPBTAdapter(): temp(0), humidity(0), clientWroteSomething(false) {
+}
+
+void ESPBTAdapter::startAdvertising(std::string deviceName) {
+    // Create the BLE Device
+    BLEDevice::init("ESP32");
+
+    // Create the BLE Server
+    pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    // Create the BLE Service
+    pService = pServer->createService(SERVICE_UUID);
+
+    // Create a BLE Characteristic
+    pCharacteristic = pService->createCharacteristic(
+                        CHARACTERISTIC_UUID,
+                        BLECharacteristic::PROPERTY_READ   |
+                        BLECharacteristic::PROPERTY_WRITE  |
+                        BLECharacteristic::PROPERTY_NOTIFY |
+                        BLECharacteristic::PROPERTY_INDICATE
+        );
+
+    // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+    // Create a BLE Descriptor
+    pCharacteristic->addDescriptor(new BLE2902());
+    pCharacteristic->setCallbacks(new CharacteristicCallbacks(this));
+    float values[2] = {temp, humidity};
+    pCharacteristic->setValue((uint8_t*)values, 8);
+
+    // Start the service
+    pService->start();
+
+    // Start advertising
+    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SERVICE_UUID);
+    pAdvertising->setScanResponse(false);
+    pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
+    BLEDevice::startAdvertising();
+    Serial.println("BLE: Advertising, waiting for client connection");
+}
+void ESPBTAdapter::setTemperature(float value) {
+    temp = value;
+}
+void ESPBTAdapter::setHumidity(float value) {
+    humidity = value;
+}
+bool ESPBTAdapter::clientIsDone() {
+    return clientWroteSomething;
+}

@@ -14,13 +14,14 @@
 #include "env.h"
 
 ESP32Adapter adapter;
+ESPBTAdapter btAdapter;
 Application *main_app;
 
 void setup() {
     Serial.begin(115200);
     delay(1500);
 
-    main_app = new Application(&adapter);
+    main_app = new Application(&adapter, &btAdapter);
     main_app->setup();
 }
 

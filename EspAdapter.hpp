@@ -78,4 +78,40 @@ private:
     int statusLedColor;
 };
 
+// ------------------------- bluetooth section -----------------
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+class ESPBTAdapter : public BTAdapter {
+public:
+    ESPBTAdapter();
+    void startAdvertising(std::string deviceName);
+    void setTemperature(float value);
+    void setHumidity(float value);
+    bool clientIsDone();
+
+    bool clientWroteSomething;
+
+private:
+    BLEServer* pServer;
+    BLEService *pService;
+    BLECharacteristic* pCharacteristic;
+
+    float temp, humidity;
+};
+
+
+class CharacteristicCallbacks : public BLECharacteristicCallbacks {
+public:
+    CharacteristicCallbacks(ESPBTAdapter *btAdapter);
+    void onWrite(BLECharacteristic* pCharacteristic, esp_ble_gatts_cb_param_t* param);
+private:
+    ESPBTAdapter *btAdapter;
+};
+
 #endif /* ESP32IO_H_ */
