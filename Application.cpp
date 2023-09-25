@@ -62,38 +62,41 @@ void Application::setup() {
 }
 
 void Application::loop() {
-    Serial.println("APP: loop()");
+    // Serial.println("APP: loop()");
     IOAdapter *a = this->adapter;
 
     #if ROLE == ROLE_BLE_SERVER
         // ROLE SERVER
-        Serial.println("APP: BLE_SERVER app");
+        // Serial.println("APP: BLE_SERVER app");
         if (a->read_state() == APP_INIT) {
-            Serial.println("APP: modde APP_INIT, go show tp.blink");
+            Serial.println("APP: mode APP_INIT, go show tp.blink");
             a->blink_to_show(MESSAGE_DEMO);
             delay(100);
         } else if (a->read_state() == APP_CONFIGURED) {
-            Serial.println("APP: modde APP_CONFIGURED, go show tp.blink");
             if (!performedRead) {
+                Serial.println("APP: mode APP_CONFIGURED, read");
                 float temp, humi;
-                a->blink_to_show(MESSAGE_READ);
+                // a->blink_to_show(MESSAGE_READ);
                 if (readValues(&temp, &humi)) {
                     performedRead = true;
                     bt->setvalues(temp, humi);
                     bt->startAdvertising("SupernovaIoT");
-                    a->blink_to_show(MESSAGE_BLE_SERVER);
+                    Serial.print("BLE: Waiting for client");
                     return;
                 }
             } else {
                 if (!bt->clientIsDone()) {
+                    // a->blink_to_show(MESSAGE_BLE_SERVER);
                     if (!cyclesDelay(25 /* max cycles */, 100 /* delay ms */)) {
-                        Serial.println("BLE: Waiting for client");
+                        Serial.print("*");
                         return;
                     }
-                    Serial.println("BLE: Client did not talked to us, continuing...");
+                    Serial.println(".. Client did not talked to us, continue...");
                 }
             }
             a->deepSleep((60 - 6) * 1000 / SMOOTHING_FACTOR);
+        } else {
+            Serial.printf("APP: mode unsupported %i\n", a->read_state());
         }
         // ROLE SERVER
     #endif

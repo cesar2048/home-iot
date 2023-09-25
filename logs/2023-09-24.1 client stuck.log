@@ -1,0 +1,72 @@
+21:28:45.661 -> [288720][D][BLEAdvertisedDevice.cpp:472] setRSSI(): - setRSSI(): rssi: -34
+21:28:45.661 -> [288726][D][BLEAdvertisedDevice.cpp:292] parseAdvertisement(): Type: 0x01 (ESP_BLE_AD_TYPE_FLAG), length: 1, data: 06
+21:28:45.693 -> [288737][D][BLEAdvertisedDevice.cpp:292] parseAdvertisement(): Type: 0x09 (ESP_BLE_AD_TYPE_NAME_CMPL), length: 5, data: 4553503332
+21:28:45.693 -> [288748][D][BLEAdvertisedDevice.cpp:461] setName(): - setName(): name: ESP32
+21:28:45.693 -> [288755][D][BLEAdvertisedDevice.cpp:292] parseAdvertisement(): Type: 0x0a (ESP_BLE_AD_TYPE_TX_PWR), length: 1, data: 09
+21:28:45.693 -> [288765][D][BLEAdvertisedDevice.cpp:530] setTXPower(): - txPower: 9
+21:28:45.725 -> [288772][D][BLEAdvertisedDevice.cpp:292] parseAdvertisement(): Type: 0x07 (ESP_BLE_AD_TYPE_128SRV_CMPL), length: 16, data: 4b9131c3c9c5cc8f9e45b51f01c2af4f
+21:28:45.725 -> [288785][D][BLEAdvertisedDevice.cpp:500] setServiceUUID(): - addServiceUUID(): serviceUUID: 4fafc201-1fb5-459e-8fcc-c5c9c331914b
+21:28:45.725 -> BLE: Found [Name: ESP32, Address: 4c:75:25:cc:4f:e2, serviceUUID: 4fafc201-1fb5-459e-8fcc-c5c9c331914b, txPower: 9, rssi: -34]
+21:28:45.757 -> [288817][V][BLEScan.cpp:440] stop(): >> stop()
+21:28:45.757 -> [288818][V][FreeRTOS.cpp:143] give(): Semaphore giving: name: ScanEnd (0x3ffe1d5c), owner: start
+21:28:45.757 -> [288820][V][BLEScan.cpp:452] stop(): << stop()
+21:28:45.757 -> [288820][V][FreeRTOS.cpp:77] wait(): << wait: Semaphore released: name: ScanEnd (0x3ffe1d5c), owner: <N/A>
+21:28:45.789 -> [288826][V][BLEUtils.cpp:1049] dumpGapEvent(): Received a GAP event: ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT
+21:28:45.789 -> 
+21:28:45.789 -> BLE: scan finished
+21:28:45.789 -> [288843][V][BLEUtils.cpp:1230] dumpGapEvent(): [status: 0]
+21:28:45.789 -> Connecting to: [288853][D][BLEClient.cpp:493] handleGAPEvent(): BLEClient ... handling GAP event!
+21:28:45.789 -> 4c:75:25:cc:4f:e2
+21:28:45.789 -> [288858][V][BLEUtils.cpp:1049] dumpGapEvent(): Received a GAP event: ESP_GAP_BLE_SCAN_RESULT_EVT
+21:28:45.821 -> [288869][V][BLEDevice.cpp:60] createClient(): >> createClient
+21:28:45.821 -> [288869][V][BLEUtils.cpp:1189] dumpGapEvent(): search_evt: ESP_GAP_SEARCH_INQ_RES_EVT, bda: 4c:75:25:cc:4f:e2, dev_type: ESP_BT_DEVICE_TYPE_BLE, ble_addr_type: BLE_ADDR_TYPE_PUBLIC, ble_evt_type: ESP_BLE_EVT_CONN_ADV, rssi: -34, ble_adv: ??, flag: 6 ([LE General Discoverable Mode] [BR/EDR Not Supported] ), num_resps: 1, adv_data_len: 31, scan_rsp_len: 0
+21:28:45.853 -> [288874][V][BLEDevice.cpp:66] createClient(): << createClient
+21:28:45.853 ->  - Created client
+21:28:45.853 -> [288905][D][BLEClient.cpp:493] handleGAPEvent(): BLEClient ... handling GAP event!
+21:28:45.853 -> [288921][V][BLEClient.cpp:98] connect(): >> connect(4c:75:25:cc:4f:e2)
+21:28:45.853 -> [288926][I][BLEDevice.cpp:622] addPeerDevice(): add conn_id: 3, GATT role: client
+21:28:45.884 -> [288933][V][FreeRTOS.cpp:189] take(): Semaphore taking: name: RegEvt (0x3ffe2338), owner: <N/A> for connect
+21:28:45.884 -> [288942][V][FreeRTOS.cpp:198] take(): Semaphore taken:  name: RegEvt (0x3ffe2338), owner: connect
+21:28:45.884 -> [288951][V][FreeRTOS.cpp:63] wait(): >> wait: Semaphore waiting: name: RegEvt (0x3ffe2338), owner: connect for connect
+21:28:45.917 -> [288951][D][BLEDevice.cpp:148] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_REG_EVT
+21:28:45.917 -> [288972][V][BLEUtils.cpp:1283] dumpGattClientEvent(): GATT Event: ESP_GATTC_REG_EVT
+21:28:45.917 -> [288979][V][BLEUtils.cpp:1444] dumpGattClientEvent(): [status: ESP_GATT_OK, app_id: 0x3]
+21:28:45.917 -> [288987][D][BLEClient.cpp:178] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_REG_EVT
+21:28:45.949 -> [288997][V][FreeRTOS.cpp:143] give(): Semaphore giving: name: RegEvt (0x3ffe2338), owner: connect
+21:28:45.949 -> [289006][V][FreeRTOS.cpp:77] wait(): << wait: Semaphore released: name: RegEvt (0x3ffe2338), owner: <N/A>
+21:28:45.949 -> [289015][V][FreeRTOS.cpp:189] take(): Semaphore taking: name: OpenEvt (0x3ffe3ca0), owner: <N/A> for connect
+21:28:45.984 -> [289025][V][FreeRTOS.cpp:198] take(): Semaphore taken:  name: OpenEvt (0x3ffe3ca0), owner: connect
+21:28:45.984 -> [289033][V][FreeRTOS.cpp:63] wait(): >> wait: Semaphore waiting: name: OpenEvt (0x3ffe3ca0), owner: connect for connect
+
+
+
+
+
+
+21:29:15.986 -> [319039][D][BLEDevice.cpp:148] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_DISCONNECT_EVT
+21:29:15.986 -> [319039][V][BLEUtils.cpp:1283] dumpGattClientEvent(): GATT Event: ESP_GATTC_DISCONNECT_EVT
+21:29:15.986 -> [319047][V][BLEUtils.cpp:1326] dumpGattClientEvent(): [reason: ESP_GATT_CONN_CONN_CANCEL, conn_id: 0, remote_bda: 4c:75:25:cc:4f:e2]
+21:29:15.986 -> [319058][D][BLEClient.cpp:178] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_DISCONNECT_EVT
+21:29:16.021 -> [319069][D][BLEDevice.cpp:148] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_OPEN_EVT
+21:29:16.021 -> [319080][V][BLEUtils.cpp:1283] dumpGattClientEvent(): GATT Event: ESP_GATTC_OPEN_EVT
+21:29:16.021 -> [319087][V][BLEUtils.cpp:1402] dumpGattClientEvent(): [status: ESP_GATT_ERROR, conn_id: 0, remote_bda: 4c:75:25:cc:4f:e2, mtu: 0]
+21:29:16.050 -> [319099][D][BLEClient.cpp:178] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_OPEN_EVT
+21:29:16.050 -> [319109][E][BLEClient.cpp:239] gattClientEventHandler(): Failed to connect, status=Unknown ESP_ERR error
+21:29:16.050 -> [319118][V][FreeRTOS.cpp:143] give(): Semaphore giving: name: OpenEvt (0x3ffe3ca0), owner: connect
+21:29:16.082 -> [319127][V][FreeRTOS.cpp:77] wait(): << wait: Semaphore released: name: OpenEvt (0x3ffe3ca0), owner: <N/A>
+21:29:16.082 -> [319136][I][BLEDevice.cpp:637] removePeerDevice(): remove: 3, GATT role client
+21:29:16.082 -> [319143][V][BLEClient.cpp:149] connect(): << connect(), rc=0
+21:29:16.082 ->  - ERR: unable to connect to server
+21:29:16.082 -> [319144][D][BLEDevice.cpp:148] gattClientEventHandler(): gattClientEventHandler [esp_gatt_if: 4] ... ESP_GATTC_UNREG_EVT
+21:29:16.121 -> Reading: Temp: ERR, Hum: ERR
+21:29:16.121 -> [319163][V][BLEUtils.cpp:1283] dumpGattClientEvent(): GATT Event: ESP_GATTC_UNREG_EVT
+21:29:16.121 -> ESP: Devkit doit 65280
+21:29:16.336 -> ESP: Devkit doit 0
+21:29:16.520 -> ESP: Devkit doit 65280
+21:29:16.735 -> ESP: Devkit doit 0
+21:29:16.919 -> ESP: Devkit doit 65280
+21:29:17.135 -> ESP: Devkit doit 0
+21:29:17.213 -> LOOP: APP_CONFIGURED, do read values
+21:29:17.213 -> Reading from
+21:29:17.213 -> BLE: scanning devices
+21:29:17.213 -> *[320285][V][BLEScan.cpp:385] start(): >> start(duration=5)

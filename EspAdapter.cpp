@@ -95,8 +95,8 @@ void ESP32Adapter::blink_to_show(int message)
         case MESSAGE_FAILED_TO_READ:    color = COLOR_RED;  count = 3; speed = 200; break;
         case MESSAGE_FAILED_TO_WRITE:   color = COLOR_RED;  count = 4; speed = 200; break;
 
-        case MESSAGE_READ:         color = COLOR_GREEN;  count = 2; speed = 200; break;
-        case MESSAGE_BLE_SERVER:   color = COLOR_BLUE;   count = 3; speed = 200; break;
+        case MESSAGE_READ:         color = COLOR_GREEN;  count = 2; speed = 20; break;
+        case MESSAGE_BLE_SERVER:   color = COLOR_BLUE;   count = 1; speed = 10; break;
     }
     
     while (count-- != 0) {
@@ -109,9 +109,29 @@ void ESP32Adapter::blink_to_show(int message)
     }
 }
 
+#ifdef TINY_PICO
+TinyPICO tp = TinyPICO();
+#endif
+
 void ESP32Adapter::statusLed(int color) {
     this->statusLedColor = color;
-    #ifdef NEOPIXEL_POWER
+
+    #ifdef TINY_PICO
+      // TinyPico
+      Serial.printf("ESP: tinypico status Led %i\n", color);
+      if (color) {
+          tp.DotStar_SetPower( true );
+          if (color == COLOR_RAINBOW) {
+              tp.DotStar_CycleColor(25);
+          } else {
+              tp.DotStar_SetPixelColor( color );
+          }
+      } else {
+          tp.DotStar_SetPower( false );
+      }
+    #else
+      #ifdef NEOPIXEL_POWER
+        Serial.print("ESP: AdaFruit NeoPixel %i\n", color);
         // Adafruit QT Py
         #define NUMPIXELS 1
         Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_RGB + NEO_KHZ800);
@@ -125,25 +145,12 @@ void ESP32Adapter::statusLed(int color) {
         } else {
             digitalWrite(NEOPIXEL_POWER, LOW);
         }
-    #else
-        #ifdef APA_POWER
-            // TinyPico
-            Serial.print("ESP: tinypico status Led %i\n", color);
-            TinyPICO tp = TinyPICO();
-            if (color) {
-                if (color == COLOR_RAINBOW) {
-                    tp.DotStar_CycleColor(25);
-                } else {
-                    tp.DotStar_SetPixelColor( 0xFFC900 );
-                }
-            } else {
-                tp.DotStar_SetPower( false );
-            }
-        #else
-            // Devkit DoIt
-            pinMode(INDICATOR_LED, OUTPUT);
-            digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
-        #endif
+      #else
+        // Devkit DoIt
+        Serial.printf("ESP: Devkit doit %i\n", color);
+        pinMode(INDICATOR_LED, OUTPUT);
+        digitalWrite(INDICATOR_LED, color ? HIGH : LOW);
+      #endif
     #endif
 }
 
@@ -215,6 +222,7 @@ bool BTSensorProvider::init() {
 
     Serial.println("BLE: Starting client...");
     BLEDevice::init("");
+    BLEDevice::setPower(ESP_PWR_LVL_N9);
     // Retrieve a Scanner and set the callback we want to use to be informed when we
     // have detected a new device.  Specify that we want active scanning and start the
     // scan to run for 5 seconds.
@@ -230,17 +238,20 @@ bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
     Serial.println("BLE: scanning devices");
     doScan = true;
     while(doScan) {
-        Serial.println("BLE: scanning devices");
+        Serial.print("*");
         BLEDevice::getScan()->start(5);
     }
-    Serial.println("BLE: scan finished");
+    Serial.println("\nBLE: scan finished");
 
-    if (!connect()) {
+    digitalWrite(DEBUG_PIN, HIGH);
+    bool result = connect();
+    digitalWrite(DEBUG_PIN, LOW);
+    if (!result) {
         return false;
     }
 
     // Read the value of the characteristic.
-    bool result = false;
+    result = false;
     if (pRemoteCharacteristic->canRead()) {
         std::string value = pRemoteCharacteristic->readValue();
         uint8_t* pData = pRemoteCharacteristic->readRawData();
@@ -274,6 +285,7 @@ bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
 bool BTSensorProvider::connect() {
     BLEUUID serviceUUID(SERVICE_UUID);
     BLEUUID charUUID(CHARACTERISTIC_UUID);
+    bool success = false;
 
     Serial.print("Connecting to: ");
     Serial.println(myDevice->getAddress().toString().c_str());
@@ -284,8 +296,13 @@ bool BTSensorProvider::connect() {
     // pClient->setClientCallbacks(new MyClientCallback());
 
     // Connect to the remove BLE Server.
-    pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
-    Serial.println(" - Connected to server");
+    success = pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+    if (success) {
+        Serial.println(" - Connected to server");
+    } else {
+        Serial.println(" - ERR: unable to connect to server");
+        return false;
+    }
     pClient->setMTU(517);  //set client to request maximum MTU from server (default is 23 otherwise)
 
     // Obtain a reference to the service we are after in the remote BLE server.

@@ -1,20 +1,23 @@
 #ifndef APPLICATION_H_
 #define APPLICATION_H_
 #include <Adafruit_Sensor.h>
-#include <DHT_U.h>
 #include <Wire.h>
-#include <DHT.h>
+// #include "Stream.h"
 #include "SmoothSignal.hpp"
-
-// application params
-#define SMOOTHING_FACTOR   1 // TODO: conditionally make it a 4 for regular operation
-#define MAX_WRITE_FAILURES 3
 
 #define ROLE_WIFI       2 // performs the old logic
 #define ROLE_BLE_SERVER 1 // reads from sensor, advertises, and gets read by client
 #define ROLE_BLE_CLIENT 0 // scans for servers and reads value from client
 
-#define ROLE            ROLE_BLE_SERVER
+#define ROLE            ROLE_BLE_CLIENT
+
+
+// application params
+#define SMOOTHING_FACTOR  4
+#define MAX_WRITE_FAILURES 3
+#if ROLE == ROLE_BLE_CLIENT
+  #define SMOOTHING_FACTOR 1
+#endif
 
 // constants
 #define APP_INIT                    0

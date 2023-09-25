@@ -21,6 +21,7 @@ ESP32 Arduino:
   * [Pinout: (AdafruitQTPy)](https://learn.adafruit.com/adafruit-qt-py-esp32-s2/pinouts)
   * [Examples: WiFi Client](https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/WiFiClient/WiFiClient.ino)
   * [Examples: AdafuitQT Pins](https://github.com/espressif/arduino-esp32/blob/master/variants/adafruit_qtpy_esp32s2/pins_arduino.h)
+  * [Firmware: Install micropython](https://docs.micropython.org/en/latest/esp32/tutorial/intro.html#getting-the-firmware)
 
 ESP32 Tutorials:
   * [ESP32 supress boot messages](https://community.platformio.org/t/esp32-prevent-from-sending-serial-output-at-startup/18756/2)

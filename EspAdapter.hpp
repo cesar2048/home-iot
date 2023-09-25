@@ -23,7 +23,10 @@
 
 #include "Application.hpp"
 
-// ESP hardware
+// Define for TinyPico
+// #define TINY_PICO 1
+
+// constants
 #define LED_BUILTIN   2  // DevKit Do-It
 #define DHTTYPE       DHT22
 #define PREFS_RW_MODE false
@@ -36,6 +39,14 @@
 #define COLOR_RAINBOW  0xFF444444 // rainbow
 #define COLOR_OFF   0
 
+
+#ifdef TINY_PICO
+    #define DEBUG_PIN       32
+    #define COLOR_RED      0x00FF0000 // red
+    #define COLOR_GREEN    0x0000FF00 // green
+#endif
+
+#define DEBUG_PIN     LED_BUILTIN
 #define WAKEUP_STATE  1
 #if defined(NEOPIXEL_POWER)
     // Adafruit QT
@@ -46,6 +57,7 @@
     #define DHTPIN        15 
     #define WAKEUP_PIN    GPIO_NUM_4
 #endif
+
 
 // influxdb
 #define TZ_INFO "UTC-6"

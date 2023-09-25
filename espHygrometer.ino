@@ -31,10 +31,27 @@ ESPBTAdapter btAdapter;
 Application *main_app;
 
 void setup() {
+    // all debug code
+    pinMode(DEBUG_PIN, OUTPUT);
+    pinMode(WAKEUP_PIN, INPUT);
+    digitalWrite(DEBUG_PIN, HIGH);
     Serial.begin(115200);
-    delay(1500);
+    int pinStatus = digitalRead(WAKEUP_PIN);
+    if (pinStatus) {
+        delay(1500);
+    }
+    digitalWrite(DEBUG_PIN, LOW);
+    
+    #ifdef TINY_PICO
+      Serial.printf("STARTUP (TinyPico, debug:%i, wake:%i)\n", DEBUG_PIN, WAKEUP_PIN);
+    #else
+      #ifdef NEOPIXEL_POWER
+        Serial.printf("STARTUP (QtPy, debug:%i, wake:%i)\n", DEBUG_PIN, WAKEUP_PIN);
+      #else
+        Serial.printf("STARTUP (Devkit DoIt, debug:%i, wake:%i)\n", DEBUG_PIN, WAKEUP_PIN);
+      #endif
+    #endif
 
-    Serial.println("STARTUP");
     main_app = new Application(&adapter, &btAdapter, &wifiAdapter, &sensors);
     main_app->setup();
 }
