@@ -17,7 +17,7 @@ Application::Application(IOAdapter *adapterInstance, BTServer *btInstance, WiFiA
 }
 
 void Application::setup() {
-    Serial.println("SETUP: START");
+    // Serial.println("SETUP: START");
     IOAdapter *a = this->adapter;
     a->init();
 
@@ -31,7 +31,7 @@ void Application::setup() {
                 a->set_state(APP_INIT, true);
             }
         }
-        Serial.println("SETUP: Sensor init");
+        // Serial.println("SETUP: Sensor init");
         sensor->init();
     #endif
 
@@ -55,10 +55,10 @@ void Application::setup() {
 
         if (a->read_state() == APP_CONFIGURED) {
             sensor->init();
-            Serial.println("SETUP: init finished");
+            // Serial.println("SETUP: init finished");
         }
     #endif
-    Serial.println("SETUP: DONE");
+    // Serial.println("SETUP: DONE");
 }
 
 void Application::loop() {
@@ -74,9 +74,9 @@ void Application::loop() {
             delay(100);
         } else if (a->read_state() == APP_CONFIGURED) {
             if (!performedRead) {
-                Serial.println("APP: mode APP_CONFIGURED, read");
+                Serial.println("APP: mode APP_CONFIGURED");
                 float temp, humi;
-                // a->blink_to_show(MESSAGE_READ);
+                a->blink_to_show(MESSAGE_READ);
                 if (readValues(&temp, &humi)) {
                     performedRead = true;
                     bt->setvalues(temp, humi);
@@ -86,7 +86,7 @@ void Application::loop() {
                 }
             } else {
                 if (!bt->clientIsDone()) {
-                    // a->blink_to_show(MESSAGE_BLE_SERVER);
+                    a->blink_to_show(MESSAGE_BLE_SERVER);
                     if (!cyclesDelay(25 /* max cycles */, 100 /* delay ms */)) {
                         Serial.print("*");
                         return;
@@ -145,7 +145,7 @@ void Application::loop() {
  * Returns true when the read correct and averaged
 */
 bool Application::readValues(float *outTemp, float *outHumi) {
-    Serial.printf("Reading from\n");
+    Serial.printf("Reading from: ");
 
     IOAdapter *a = this->adapter;
     float temperature, humidity;

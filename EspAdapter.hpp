@@ -27,40 +27,46 @@
 // #define TINY_PICO 1
 
 // constants
-#define LED_BUILTIN   2  // DevKit Do-It
 #define DHTTYPE       DHT22
 #define PREFS_RW_MODE false
 #define PREFS_RO_MODE true
+#define WAKEUP_STATE  1
+#define TZ_INFO       "UTC-6" // influxdb
 
-// Adafruit NeoPixel
-#define COLOR_RED      0x0000FF00 // red
-#define COLOR_GREEN    0x00FF0000 // green
-#define COLOR_BLUE     0x000000FF // blue
-#define COLOR_RAINBOW  0xFF444444 // rainbow
-#define COLOR_OFF   0
+// Colors (defaults for TinyPico)
+#define COLOR_RED     0x00FF0000  // red
+#define COLOR_GREEN   0x0000FF00  // green
+#define COLOR_BLUE    0x000000FF  // blue
+#define COLOR_OFF     0
 
+// IO pins (defaults for ESP32 DevKit DoIt)
+#define LED_BUILTIN   GPIO_NUM_2  // default led
+#define DEBUG_PIN     GPIO_NUM_13 // toggl switch
+#define DHTPIN        GPIO_NUM_15 // Dht22 sensor
+#define WAKEUP_PIN    GPIO_NUM_4  // push button
+#define CUSTOM_TX     -1  // default
+#define CUSTOM_RX     -1  // default
 
 #ifdef TINY_PICO
-    #define DEBUG_PIN       32
-    #define COLOR_RED      0x00FF0000 // red
-    #define COLOR_GREEN    0x0000FF00 // green
-#endif
-
-#define DEBUG_PIN     LED_BUILTIN
-#define WAKEUP_STATE  1
-#if defined(NEOPIXEL_POWER)
-    // Adafruit QT
+  // overrides: For TinyPico
+  #define LED_BUILTIN   GPIO_NUM_27 // default led
+  #define DEBUG_PIN     GPIO_NUM_25 // toggl switch
+  #define DHTPIN        GPIO_NUM_4  // Dht22 sensor
+  #define WAKEUP_PIN    GPIO_NUM_26 // push button
+  #define CUSTOM_TX     GPIO_NUM_14
+  #define CUSTOM_RX     GPIO_NUM_15
+  #define COLOR_RAINBOW 0xFF444444  // rainbow
+#else
+  #ifdef NEOPIXEL_POWER
+    // overrides: For QtPy
     #define DHTPIN        35
     #define WAKEUP_PIN    GPIO_NUM_16 // RX Pin
-#else
-    // Devkit Do-it
-    #define DHTPIN        15 
-    #define WAKEUP_PIN    GPIO_NUM_4
+    #define COLOR_RED     0x0000FF00  // red
+    #define COLOR_GREEN   0x00FF0000  // green
+  #endif
 #endif
 
 
-// influxdb
-#define TZ_INFO "UTC-6"
 
 extern const char *baseAPName;
 
@@ -74,10 +80,6 @@ public:
     void blink_to_show(int message);
     void restart();
     
-    // void init_sensors();
-    // DataReading read_temperature();
-    // DataReading read_humidity();
-
     void deepSleep(int milliSeconds);
     int isWakeUpButtonOn();
 
@@ -109,15 +111,13 @@ public:
 };
 
 
-
-
-
 class DHTSensorProvider : public SensorProvider {
     DHT_Unified *dht;
 public:
     bool init();
     bool readValues(float *temp, float *humid);
 };
+
 
 // ------------------------- Wifi section -----------------
 

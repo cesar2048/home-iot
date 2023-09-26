@@ -31,13 +31,10 @@ ESP32Adapter::ESP32Adapter() : statusLedColor(0) {
 
 void ESP32Adapter::init() {
     printWakeUpReason();
-
+    pinMode(WAKEUP_PIN, INPUT);
     #ifndef NEOPIXEL_POWER
         // Devkit Do-it
-        pinMode(WAKEUP_PIN, INPUT);
         while(!Serial){delay(100);}
-    #else
-        pinMode(WAKEUP_PIN, INPUT); 
     #endif
 }
 
@@ -76,11 +73,20 @@ void ESP32Adapter::blink_to_show(int message)
     int count = 0;
     int speed = 500;
     int color = COLOR_GREEN; // green
+    bool doDebug = digitalRead(DEBUG_PIN);
+    if (!doDebug) {
+        this->statusLed(COLOR_OFF);
+        return;
+    }
 
-    if (message == MESSAGE_DEMO) {
+    #ifdef COLOR_RAINBOW
+    if (message == MESSAGE_DEMO) { // TinyPico only
         this->statusLed(COLOR_RAINBOW);
         return;
     }
+    #else
+      this->statusLed(COLOR_GREEN);
+    #endif
 
     if (message == MESSAGE_CONFIG_MODE_ENABLED) {
         int status = this->statusLedColor;
@@ -118,7 +124,7 @@ void ESP32Adapter::statusLed(int color) {
 
     #ifdef TINY_PICO
       // TinyPico
-      Serial.printf("ESP: tinypico status Led %i\n", color);
+      // Serial.printf("ESP: tinypico status Led %i\n", color);
       if (color) {
           tp.DotStar_SetPower( true );
           if (color == COLOR_RAINBOW) {
@@ -155,7 +161,7 @@ void ESP32Adapter::statusLed(int color) {
 }
 
 void ESP32Adapter::deepSleep(int milliSeconds) {
-    Serial.println("going deep sleep");
+    Serial.println("going deep sleep\n");
     esp_sleep_enable_timer_wakeup(1000 * milliSeconds);
     esp_sleep_enable_ext0_wakeup(WAKEUP_PIN, WAKEUP_STATE);
     esp_deep_sleep_start();
@@ -172,12 +178,12 @@ bool DHTSensorProvider::init() {
     Serial.println("DHT: sensor init");
     this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
     this->dht->begin();
-    Serial.println("DHT: init DONE");
+    // Serial.println("DHT: init DONE");
     return true;
 }
 
 bool DHTSensorProvider::readValues(float *temp, float *humid) {
-    Serial.println("DHT: sensor read values");
+    Serial.println("DHT:readValues()");
 
     sensors_event_t evt;
     this->dht->temperature().getEvent(&evt);
@@ -235,7 +241,7 @@ bool BTSensorProvider::init() {
 }
 
 bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
-    Serial.println("BLE: scanning devices");
+    Serial.println("BLE:readValues(), start scan: ");
     doScan = true;
     while(doScan) {
         Serial.print("*");
@@ -279,6 +285,8 @@ bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
 
     // finally disconnect
     pClient->disconnect();
+    // BLEDevice::deinit();
+    // Serial.println("BLE: deinit");
     return result;
 }
 
@@ -597,6 +605,7 @@ bool ESP32Wifi::send_measurements_to_influx_server(float temperature, float humi
         return false;
     }
 
+    // esp_wifi_stop();
     return true;
 }
 #endif
@@ -626,7 +635,7 @@ CharacteristicCallbacks::CharacteristicCallbacks(ESPBTAdapter *adapter): btAdapt
 }
 
 void CharacteristicCallbacks::onWrite(BLECharacteristic* pCharacteristic, esp_ble_gatts_cb_param_t* param) {
-    Serial.printf("BLE: Client wrote: %s\n", pCharacteristic->getValue().c_str());
+    Serial.printf("[BLE:Recv: %s]", pCharacteristic->getValue().c_str());
     btAdapter->clientWroteSomething = true;
 }
 
@@ -635,7 +644,7 @@ void CharacteristicCallbacks::onWrite(BLECharacteristic* pCharacteristic, esp_bl
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-        Serial.println("BLE: Client connected");
+        Serial.print("[BLE:Connected]");
     };
 
     void onDisconnect(BLEServer* pServer) {
