@@ -249,9 +249,9 @@ bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
     }
     Serial.println("\nBLE: scan finished");
 
-    digitalWrite(DEBUG_PIN, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
     bool result = connect();
-    digitalWrite(DEBUG_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
     if (!result) {
         return false;
     }
@@ -285,8 +285,6 @@ bool BTSensorProvider::readValues(float *outTemp, float *outHumi) {
 
     // finally disconnect
     pClient->disconnect();
-    // BLEDevice::deinit();
-    // Serial.println("BLE: deinit");
     return result;
 }
 

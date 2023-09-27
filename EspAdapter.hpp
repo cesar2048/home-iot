@@ -41,9 +41,9 @@
 
 // IO pins (defaults for ESP32 DevKit DoIt)
 #define LED_BUILTIN   GPIO_NUM_2  // default led
-#define DEBUG_PIN     GPIO_NUM_13 // toggl switch
+#define DEBUG_PIN     GPIO_NUM_33 // toggl switch
 #define DHTPIN        GPIO_NUM_15 // Dht22 sensor
-#define WAKEUP_PIN    GPIO_NUM_4  // push button
+#define WAKEUP_PIN    GPIO_NUM_26 // push button
 #define CUSTOM_TX     -1  // default
 #define CUSTOM_RX     -1  // default
 

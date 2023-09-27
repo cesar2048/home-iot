@@ -109,7 +109,7 @@ void Application::loop() {
             }
 
         } else if (a->read_state() == APP_CONFIGURED) {
-            Serial.println("LOOP: APP_CONFIGURED, do read values");
+            Serial.println("APP: status APP_CONFIGURED, read values");
             float temp, humi;
             if (readValues(&temp, &humi)) {
                 wifi->start_wifi_client();
@@ -121,8 +121,9 @@ void Application::loop() {
 
             #if ROLE == ROLE_WIFI
                 a->deepSleep((60 - 6) * 1000 / SMOOTHING_FACTOR);
-            #elif ROLE == ROLE_BLE_CLIENT
-                delay(100);
+            #else // ROLE_BLE_CLIENT
+                Serial.println("APP: restart BLE");
+                a->restart();
             #endif
 
         } else if (a->read_state() == APP_WAKEUP) {
