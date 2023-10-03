@@ -1,17 +1,9 @@
 /**************************************************************************************
  ESP8266 NodeMCU interfacing with SSD1306 OLED and DHT22 (AM2302) sensor
 ***************************************************************************************/
-//#include <Adafruit_Sensor.h>
-//#include <DHT_U.h>
-//#include <Wire.h>
-//#include <DHT.h>
-//#include <InfluxDbClient.h>
-//#include <InfluxDbCloud.h>
-
 #include "EspAdapter.hpp"
 #include "Application.hpp"
 #include "SmoothSignal.hpp"
-// #include "env.h"
 
 ESP32Adapter adapter;
 ESPBTAdapter btAdapter;
@@ -39,11 +31,12 @@ void setup() {
     
     bool doDebug   = digitalRead(DEBUG_PIN);
     bool wakeUpBtn = digitalRead(WAKEUP_PIN);
+    Serial.begin(115200, SERIAL_8N1, CUSTOM_RX, CUSTOM_TX);
     if (doDebug) {
-        Serial.begin(115200, SERIAL_8N1, CUSTOM_RX, CUSTOM_TX);
+        // Serial.begin(115200, SERIAL_8N1, CUSTOM_RX, CUSTOM_TX);
         doBlinky = digitalRead(WAKEUP_PIN); // blinky if Debug && WakeUpBtn are ON
     } else {
-        Serial.begin(115200);
+        // Serial.begin(115200);
     }
     
     #ifdef TINY_PICO
@@ -56,30 +49,33 @@ void setup() {
       #endif
     #endif
 
+    digitalWrite(LED_BUILTIN, HIGH);
     if (doDebug) {
-        digitalWrite(LED_BUILTIN, HIGH);
         delay(1500);
-        digitalWrite(LED_BUILTIN, LOW);
     }
+    digitalWrite(LED_BUILTIN, LOW);
 
     if (!doBlinky) {
       main_app = new Application(&adapter, &btAdapter, &wifiAdapter, &sensors);
       main_app->setup();
+
+      //Serial.println('NO BLINKY Setup()');
     }
 }
 
 void loop() {
     if (doBlinky) {
-      bool pushBtnUp = digitalRead(DEBUG_PIN);
-      int delayMs    = pushBtnUp ? 50 : 1000;
-      Serial.printf("BLINK: Push: %i\n", pushBtnUp);
+      bool debugSw = digitalRead(DEBUG_PIN);
+      bool wakeUpBtn = digitalRead(WAKEUP_PIN);
+      int delayMs    = debugSw ? 50 : 1000;
+      Serial.printf("BLINK: wakeBtn: %i, debugSw: %i\n", wakeUpBtn, debugSw);
 
       digitalWrite(LED_BUILTIN, HIGH);
       delay(delayMs);
       digitalWrite(LED_BUILTIN, LOW);
       delay(delayMs);
     } else {
-      // Serial.printf("MAIN\n"); delay(500);
+      //Serial.printf("MAIN\n"); delay(500);
       main_app->loop();
     }
 }

@@ -14,8 +14,7 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-#include <DHT_U.h>
-#include <DHT.h>
+#include <Adafruit_AHTX0.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_NeoPixel.h>
@@ -59,13 +58,15 @@
 #else
   #ifdef NEOPIXEL_POWER
     // overrides: For QtPy
-    #define DHTPIN        35
-    #define WAKEUP_PIN    GPIO_NUM_16 // RX Pin
+    #define LED_BUILTIN   GPIO_NUM_13 // on led
+    #define DEBUG_PIN     GPIO_NUM_25 // dbg switch
+    #define WAKEUP_PIN    GPIO_NUM_27 // push button
+    #define CUSTOM_TX     GPIO_NUM_32
+    #define CUSTOM_RX     GPIO_NUM_7
     #define COLOR_RED     0x0000FF00  // red
     #define COLOR_GREEN   0x00FF0000  // green
   #endif
 #endif
-
 
 
 extern const char *baseAPName;
@@ -111,8 +112,12 @@ public:
 };
 
 
+
+
+
 class DHTSensorProvider : public SensorProvider {
-    DHT_Unified *dht;
+    Adafruit_AHTX0 aht;
+    bool initialized;    
 public:
     bool init();
     bool readValues(float *temp, float *humid);

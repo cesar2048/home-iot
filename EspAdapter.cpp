@@ -1,6 +1,5 @@
 #include "EspAdapter.hpp"
 #include "test-scripts/public/output.c"
-#include "env.h"
 
 const char *baseAPName = "Hyg";
 #define LIMIT_EMPTY_REQUESTS 5
@@ -137,7 +136,7 @@ void ESP32Adapter::statusLed(int color) {
       }
     #else
       #ifdef NEOPIXEL_POWER
-        Serial.print("ESP: AdaFruit NeoPixel %i\n", color);
+        // Serial.printf("ESP: AdaFruit NeoPixel %i\n", color);
         // Adafruit QT Py
         #define NUMPIXELS 1
         Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_RGB + NEO_KHZ800);
@@ -175,30 +174,22 @@ int ESP32Adapter::isWakeUpButtonOn() {
 // ----------------------------- Sensors section (DHT)  ------------------------------------
 
 bool DHTSensorProvider::init() {
-    Serial.println("DHT: sensor init");
-    this->dht = new DHT_Unified(DHTPIN, DHTTYPE);
-    this->dht->begin();
-    // Serial.println("DHT: init DONE");
-    return true;
+    initialized = aht.begin();
+    if (!initialized) {
+        Serial.println("AHT: Could not find sensor, check wiring");
+    }
+
+    return initialized;
 }
 
-bool DHTSensorProvider::readValues(float *temp, float *humid) {
-    Serial.println("DHT:readValues()");
+bool DHTSensorProvider::readValues(float *outTemp, float *outHumid) {
+    Serial.println("AHT:readValues()");
 
-    sensors_event_t evt;
-    this->dht->temperature().getEvent(&evt);
-    if (isnan(evt.temperature)) {
-        return false;
-    }
-    *temp = evt.temperature;
+    sensors_event_t humidity, temp;
+    aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
 
-
-    this->dht->humidity().getEvent(&evt);
-    if (isnan(evt.relative_humidity)) {
-        return false;
-    }
-    *humid = evt.relative_humidity;
-
+    *outTemp = temp.temperature;
+    *outHumid = humidity.relative_humidity;
     return true;
 }
 

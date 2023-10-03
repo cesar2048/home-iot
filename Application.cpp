@@ -71,7 +71,7 @@ void Application::loop() {
         if (a->read_state() == APP_INIT) {
             Serial.println("APP: mode APP_INIT, go show tp.blink");
             a->blink_to_show(MESSAGE_DEMO);
-            delay(100);
+            delay(250);
         } else if (a->read_state() == APP_CONFIGURED) {
             if (!performedRead) {
                 Serial.println("APP: mode APP_CONFIGURED");

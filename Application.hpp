@@ -2,14 +2,13 @@
 #define APPLICATION_H_
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
-// #include "Stream.h"
 #include "SmoothSignal.hpp"
 
 #define ROLE_WIFI       2 // performs the old logic
 #define ROLE_BLE_SERVER 1 // reads from sensor, advertises, and gets read by client
 #define ROLE_BLE_CLIENT 0 // scans for servers and reads value from client
 
-#define ROLE            ROLE_BLE_CLIENT
+#define ROLE            ROLE_BLE_SERVER
 
 
 // application params
